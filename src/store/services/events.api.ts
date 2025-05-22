@@ -1,6 +1,7 @@
 
 import { api } from "../api";
 
+type Category = "Corporate" | "Sports" | "Music" | "Arts & Entertainment" | "Food & Drink"| "Festival" | "Family" | "Other"
 export type Event = {
   id: number;
   eventname: string;
@@ -8,8 +9,9 @@ export type Event = {
   eventdescription: string;
   eventstartdatetime: string;
   imageUrl: string;
+  geolocation:string[];
   imagedata: { selectedImg: string, alts: { choice: number, imgUrl: string }[] };
-  metadata: { url: string, eventLongDescription: string, google_calendar_url: string, soldOut: boolean, address: string, price: string | null };
+  metadata: { eventTags: { Categories: Category[]}, url: string, eventLongDescription: string, google_calendar_url: string, soldOut: boolean, address: string, price: string | null };
   createdat: string;
   attending?: boolean;
   saved?: boolean;
@@ -22,7 +24,11 @@ type GetEventsResponse = {
     pageSize: number,
     totalEvents: number,
     totalPages: number,
-    hasMore: true
+    hasMore: boolean
+  },
+  appliedFilters?: {
+    categories: Category[],
+    invalidFilters: string[]
   }
 }
 
@@ -173,14 +179,44 @@ export const eventApi = api.enhanceEndpoints({ addTagTypes: ['EVENTS'] }).inject
       providesTags: ['EVENTS']
     }),
 
-    getHistoryEvents: builder.query<GetEventsResponse, { page: string, pageSize?: string }>({
-      query: ({ page, pageSize = '20' }) => ({
-        url: 'events/history',
-        params: {
+    getHistoryEvents: builder.query<GetEventsResponse, {
+      page: string,
+      pageSize?: string,
+      categories?: Category[],
+      filter?: Category | Category[], // Single category or array for flexibility
+    }>({
+      query: ({ page, pageSize = '20', categories, filter }) => {
+        const params: Record<string, string | string[]> = {
           page,
           pageSize
-        },
-      }),
+        };
+
+        const allCategories: Category[] = [];
+
+        if (categories && categories.length > 0) {
+          allCategories.push(...categories);
+        }
+
+        if (filter) {
+          if (Array.isArray(filter)) {
+            allCategories.push(...filter);
+          } else {
+            allCategories.push(filter);
+          }
+        }
+
+        const uniqueCategories = [...new Set(allCategories)];
+
+        if (uniqueCategories.length > 0) {
+          params.category = uniqueCategories;
+        }
+
+
+        return {
+          url: 'events/history',
+          params,
+        };
+      },
       providesTags: ['EVENTS']
     }),
 
