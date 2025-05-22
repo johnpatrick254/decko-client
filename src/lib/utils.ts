@@ -1,4 +1,5 @@
 import { clsx, type ClassValue } from "clsx"
+import { toast } from "sonner";
 import { twMerge } from "tailwind-merge"
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -119,3 +120,76 @@ export function formatTimeWithTimezone(dateStr: string) {
     return dateStr
   }
 }
+
+/**
+ * Extracts the date portion (YYYY-MM-DD) from an ISO datetime string or military time format
+ * @param isoString - ISO datetime string (e.g., "2025-05-29T20:00:00.000Z")
+ * @returns Date string in YYYY-MM-DD format or null if invalid
+ */
+export const extractDateFromISO = (isoString: string | undefined): string | null => {
+  if (!isoString) return null;
+
+  try {
+    // Method 1: Direct string extraction (fastest for well-formed ISO strings)
+    const isoMatch = isoString.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (isoMatch) {
+      return isoMatch[1];
+    }
+
+    // Method 2: Parse as Date object and format (handles edge cases)
+    const date = new Date(isoString);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+
+    // Method 3: Manual parsing for non-standard formats
+    const parts = isoString.split(/[T\s]/)[0]; // Get everything before 'T' or space
+    if (/^\d{4}-\d{2}-\d{2}$/.test(parts)) {
+      return parts;
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('Error extracting date from ISO string:', error);
+    return null;
+  }
+};
+
+/**
+ * Alternative version that returns a fallback value instead of null
+ * @param isoString - ISO datetime string
+ * @param fallback - Fallback value to return if extraction fails (default: "Invalid Date")
+ * @returns Date string in YYYY-MM-DD format or fallback value
+ */
+export const extractDateFromISOWithFallback = (
+  isoString: string | undefined,
+  fallback: string = "Invalid Date"
+): string => {
+  return extractDateFromISO(isoString) ?? fallback;
+};
+
+/**
+ * Extract date with custom format options
+ * @param isoString - ISO datetime string
+ * @param format - Output format: "YYYY-MM-DD" | "DD-MM-YYYY" | "MM-DD-YYYY"
+ * @returns Formatted date string or null if invalid
+ */
+export const extractDateFromISOFormatted = (
+  isoString: string | undefined,
+  format: "YYYY-MM-DD" | "DD-MM-YYYY" | "MM-DD-YYYY" = "YYYY-MM-DD"
+): string | null => {
+  const dateStr = extractDateFromISO(isoString);
+  if (!dateStr) return null;
+
+  const [year, month, day] = dateStr.split('-');
+
+  switch (format) {
+    case "DD-MM-YYYY":
+      return `${day}-${month}-${year}`;
+    case "MM-DD-YYYY":
+      return `${month}-${day}-${year}`;
+    case "YYYY-MM-DD":
+    default:
+      return dateStr;
+  }
+};

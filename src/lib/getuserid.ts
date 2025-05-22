@@ -1,6 +1,7 @@
+import { handleGeolocation } from "./geolocation";
+
 export function getUserId() {
   let userId = localStorage.getItem("user_id") ?? "";
-
   if (!userId) {
     if (window.crypto?.randomUUID) {
       userId = window.crypto.randomUUID();
@@ -11,6 +12,7 @@ export function getUserId() {
         Date.now().toString(36);
     }
     localStorage.setItem("user_id", userId);
+    handleGeolocation().then(data=>data)
   }
 
   return userId;
