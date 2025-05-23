@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { CalendarHeartIcon } from 'lucide-react';
 import { useEventsCounterContext } from "@/provider/eventcounterprovider";
 import { useDrawer } from '@/provider/drawerprovider';
-import { TimeFilterTabs } from './TimeFilterTabs';
+import { TimeFilterTabs } from './timefiltertabs';
 
 const CATEGORY_ICONS: any = {
     events: CalendarHeartIcon

@@ -2,13 +2,13 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import StoreProvider from "@/store/storeprovider";
-import Header from "@/components/header/Header";
+import Header from "@/components/header/header";
 import { ThemeProvider } from "@/provider/themeprovider";
 import { PostHogProvider } from '@/provider/posthog';
 import {
   ClerkProvider
 } from '@clerk/nextjs';
-import { SideBar } from "@/components/header/SideBar/Sidebar";
+import { SideBar } from "@/components/header/sidebar/Sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { EventQueueProvider } from "@/provider/eventsqueue";
 import { EventsCounterProvider } from "@/provider/eventcounterprovider";

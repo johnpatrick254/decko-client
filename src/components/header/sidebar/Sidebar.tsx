@@ -1,5 +1,4 @@
 "use client"
-import { CalendarHeartIcon, BookmarkIcon, HistoryIcon } from "lucide-react";
 import * as React from "react"
 import {
     SidebarContent,
@@ -11,7 +10,6 @@ import {
     SidebarMenu,
     SidebarRail,
     useSidebar,
-    SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { BrandLogo } from "./BrandLogo";
 

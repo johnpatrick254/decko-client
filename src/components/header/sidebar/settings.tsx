@@ -36,9 +36,9 @@ export function Settings() {
                         defaultValue={textSize}
                         onValueChange={(value) => setTextSize(value as 'sm' | 'md' | 'lg')}
                     >
-                        <SelectTrigger id="text-size" className="w-max shadow-none !ring-0 outline-none border-none px-0 gap-1.5">
+                        <SelectTrigger id="text-size" className=" bg-transparent w-max shadow-none !ring-0 outline-none border-none px-0 gap-1.5">
                             <SelectValue
-                                placeholder="Select text size" className="mr-1.5" />
+                                placeholder="Select text size" className="mr-1.5 bg-transparent " />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="sm">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { SidebarTrigger } from '../ui/sidebar';
-import City from './City';
+import City from './city';
 
 function Header() {
   return (
