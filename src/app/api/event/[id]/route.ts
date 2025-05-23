@@ -26,6 +26,7 @@ export async function GET(
         eventstartdatetime: true,
         imagedata: true,
         metadata: true,
+        geolocation:true,
         createdat: true,
         user_event_status: {
           where: { user_id: userId },

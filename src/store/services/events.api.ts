@@ -8,6 +8,8 @@ export type Event = {
   eventvenuename: string;
   eventdescription: string;
   eventstartdatetime: string;
+  city:string;
+  state:string;
   imageUrl: string;
   geolocation:string[];
   imagedata: { selectedImg: string, alts: { choice: number, imgUrl: string }[] };

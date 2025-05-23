@@ -241,3 +241,24 @@ model source_pplx_source_seed {
   @@index([is_active], map: "idx_source_pplx_source_seed_active")
   @@index([category_id], map: "idx_source_pplx_source_seed_category_id")
 }
+
+model recommendation_jobs {
+  id            String    @id @db.VarChar(36)
+  user_id       String    @db.VarChar(255)
+  status        String    @db.VarChar(50)
+  parameters    Json      @db.Json
+  result        Json?     @db.Json
+  error_message String?
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+  completed_at  DateTime? @db.Timestamptz(6)
+
+  @@index([status], map: "ix_recommendation_jobs_status")
+  @@index([user_id], map: "ix_recommendation_jobs_user_id")
+}
+
+model test_table {
+  id    Int    @id @default(autoincrement())
+  name  String @db.VarChar(100)
+  value Int
+}
