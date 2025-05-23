@@ -3,7 +3,6 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 export interface EventDeckProps {
-  id: string;
   title: string;
   coverImage: string;
   isCompleted?: boolean;
@@ -12,7 +11,6 @@ export interface EventDeckProps {
 }
 
 export default function EventDeck({
-  id,
   title,
   coverImage,
   isCompleted = false,
@@ -93,7 +91,7 @@ export default function EventDeck({
   );
   
   return (
-    <Link href={`/deck/${id}`} className="block">
+    <Link href={title === "All" ? "/events":`/events/${title}`} className="block">
       {deckContent}
     </Link>
   )
