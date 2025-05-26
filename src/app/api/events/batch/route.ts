@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     const needsCountCheck = !cachedCount || (Date.now() - cachedCount.timestamp > CACHE_TTL);
 
     // If we have a valid cache entry and it shows fewer than 100 events, trigger recommendations
-    if (cachedCount && cachedCount.count < 100) {
+    if (cachedCount && cachedCount.count < 50) {
       needsRecommendations = true;
       triggerRecommendationsAsync(userId, userLat, userLong);
     }
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     // Check if we need to trigger recommendations based on recommendation count
     if (!recommendationsResult ||
-      (recommendationsResult && (recommendationsResult.event_ids as any).length < 100)) {
+      (recommendationsResult && (recommendationsResult.event_ids as any).length < 50)) {
       needsRecommendations = true;
       triggerRecommendationsAsync(userId, userLat, userLong);
     }

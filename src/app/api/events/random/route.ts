@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     // First, check if we need to trigger new recommendations based on total count
     if (!recommendationsResult ||
-      (recommendationsResult && (recommendationsResult.event_ids as any).length < 100)) {
+      (recommendationsResult && (recommendationsResult.event_ids as any).length < 50)) {
       // Trigger recommendations asynchronously with location - don't await to avoid delaying the response
       triggerRecommendations(userId, userLat, userLong);
     }
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
         const eventsInRadiusCount = parseInt(result[0].count.toString());
 
         // If there are fewer than 100 events in radius, trigger recommendations with location
-        if (eventsInRadiusCount < 100) {
+        if (eventsInRadiusCount < 50) {
           // Trigger recommendations with location to get more relevant events
           triggerRecommendations(userId, userLat, userLong);
           console.log(`Only ${eventsInRadiusCount} events found within ${radius} miles radius. Triggered location-based recommendations.`);
