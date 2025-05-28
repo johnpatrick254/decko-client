@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const locationParam = searchParams.get('location');
-    const [userLong, userLat] = parseLocationParam(locationParam);
+    const [userLat, userLong] = parseLocationParam(locationParam);
     const radius = searchParams.get('radius') ? parseFloat(searchParams.get('radius')!) : 100; // Default 100 mile radius
     const maxDaysOld = searchParams.get('maxDaysOld') ? parseInt(searchParams.get('maxDaysOld')!, 10) : undefined; // Parameter for filtering events within next X days
 

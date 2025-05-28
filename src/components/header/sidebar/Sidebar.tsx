@@ -27,14 +27,27 @@ const data = {
         avatar: "/avatars/shadcn.jpg",
     },
     navMain: [
-        {
-            title: "New York" as Location,
-        },
+
         {
             title: "Fort Lauderdale" as Location,
+            coords:[
+                26.122438,
+                -80.137314
+            ]
         },
         {
             title: "Nairobi" as Location,
+            coords:[
+                -1.286389,
+                36.817223
+            ]
+        }, 
+        {
+            title: "San Francisco" as Location,
+            coords:[
+                37.773972,
+                -122.431297
+            ]
         }
     ]
 }

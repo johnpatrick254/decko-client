@@ -37,11 +37,11 @@ type GetEventsResponse = {
 // Location type that includes both display name and coordinates
 export interface LocationData {
   displayName: string;
-  coordinates: [number, number]; // [longitude, latitude]
+  coordinates: number[]; // [longitude, latitude]
 }
 
 // Type for backward compatibility
-export type SEARCH_LOCATIONS = string | LocationData;
+export type SEARCH_LOCATIONS =  LocationData;
 
 // Default locations with approximate coordinates
 export const DEFAULT_LOCATIONS: Record<string, LocationData> = {
