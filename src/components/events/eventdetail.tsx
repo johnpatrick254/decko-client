@@ -6,6 +6,8 @@ import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, useEf
 import { useGetEventByIdQuery, useRegisterEventOpenMutation, useShareEventMutation } from "@/store/services/events.api";
 import GoogleMap from "./geomap";
 import { calculateDistance } from "@/lib/geolocation";
+import { formatEventDate, getRelativeTime } from "@/lib/utils";
+import ShareButton from "../header/share";
 export function EventDetail({ eventId }: { eventId: string }) {
     const { data: event, isLoading, error } = useGetEventByIdQuery({ id: parseInt(eventId) });
     const [shareEvent] = useShareEventMutation();
@@ -18,26 +20,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
         }
     }, [event?.id, registerEventOpen]);
 
-    const handleShare = async () => {
-        if (event?.id) {
-            try {
-                await shareEvent({ id: event.id }).unwrap();
-                // Optionally show success message
-            } catch (error) {
-                console.error('Failed to share event:', error);
-            }
-        }
-    };
 
-    const handleCopyLink = () => {
-        const url = window.location.href;
-        navigator.clipboard.writeText(url).then(() => {
-            // Optionally show success message
-            console.log('Link copied to clipboard');
-        }).catch(err => {
-            console.error('Failed to copy link:', err);
-        });
-    };
 
     if (isLoading) {
         return (
@@ -59,18 +42,6 @@ export function EventDetail({ eventId }: { eventId: string }) {
         );
     }
 
-    // Format the event date
-    const formatEventDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        }).replace(',', ' •');
-    };
 
     const formattedDate = formatEventDate(event.eventstartdatetime);
     let distanceInMiles = null
@@ -116,25 +87,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
 
                 {/* Share buttons */}
                 <div className="absolute top-4 right-4 flex gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-10 w-10 rounded-full p-0 bg-white/90 hover:bg-white"
-                        onClick={handleShare}
-                    >
-                        <ShareIcon className="h-5 w-5" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-10 w-10 rounded-full p-0 bg-white/90 hover:bg-white"
-                        onClick={handleCopyLink}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                        </svg>
-                    </Button>
+                    <ShareButton url={window.location.href} title={event.eventname} />
                 </div>
             </div>
 
@@ -173,7 +126,24 @@ export function EventDetail({ eventId }: { eventId: string }) {
                                 ))}
                             </div>
                         </div>
-
+                        {/* Action buttons */}
+                        <div className="flex flex-wrap gap-4">
+                            {event.metadata?.url && (
+                                <Button variant="outline" className="flex items-center">
+                                    <Link2Icon />
+                                    <a href={event.metadata.url} target="_blank" rel="noopener noreferrer">
+                                        Visit source
+                                    </a>
+                                </Button>
+                            )}
+                            {event.metadata?.google_calendar_url && (
+                                <Button asChild>
+                                    <a href={event.metadata.google_calendar_url} target="_blank" rel="noopener noreferrer">
+                                        Add to Calendar
+                                    </a>
+                                </Button>
+                            )}
+                        </div>
                         {/* About section */}
                         <div className="rounded-lg bg-gray-100 p-4 dark:bg-gray-800">
                             <h3 className="mb-2 font-medium">About this event</h3>
@@ -193,24 +163,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
                             </div>
                         )}
 
-                        {/* Action buttons */}
-                        <div className="flex flex-wrap gap-4">
-                            {event.metadata?.url && (
-                                <Button variant="outline" className="flex items-center">
-                                    <Link2Icon/> 
-                                    <a href={event.metadata.url} target="_blank" rel="noopener noreferrer">
-                                        Event Link
-                                    </a>
-                                </Button>
-                            )}
-                            {event.metadata?.google_calendar_url && (
-                                <Button  asChild>
-                                    <a href={event.metadata.google_calendar_url} target="_blank" rel="noopener noreferrer">
-                                        Add to Calendar
-                                    </a>
-                                </Button>
-                            )}
-                        </div>
+
 
                         {/* Map section */}
                         <div className="space-y-4">
@@ -233,52 +186,3 @@ export function EventDetail({ eventId }: { eventId: string }) {
     );
 }
 
-function getRelativeTime(dateString: string): string {
-    try {
-        // Parse the date from format "Sat, Jul 15 • 7:00 PM"
-        const [_, monthStr, dayStr, timeStr, period] = dateString.split(/[ ,•]+/);
-
-        // Map month abbreviations to numbers (0-11)
-        const months: { [key: string]: number } = {
-            Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-            Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
-        };
-
-        const month = months[monthStr];
-        const day = parseInt(dayStr, 10);
-
-        // Parse time
-        const [hours, minutes] = timeStr.split(":").map(Number);
-        let hours24 = hours;
-
-        if (period === 'PM' && hours < 12) {
-            hours24 = hours + 12;
-        } else if (period === 'AM' && hours === 12) {
-            hours24 = 0;
-        }
-
-        // Create event date (using current year or next year if the event has already passed this year)
-        const now = new Date();
-        let eventDate = new Date(now.getFullYear(), month, day, hours24, minutes);
-
-        // If the event has already passed this year, use next year's date
-        if (eventDate < now) {
-            eventDate = new Date(now.getFullYear() + 1, month, day, hours24, minutes);
-        }
-
-        // Calculate difference in days
-        const diffInMs = eventDate.getTime() - now.getTime();
-        const diffInDays = Math.ceil(diffInMs / (1000 * 60 * 60 * 24));
-
-        // Return appropriate relative time string
-        if (diffInDays < 0) return "Event passed";
-        if (diffInDays === 0) return "Today";
-        if (diffInDays === 1) return "Tomorrow";
-        if (diffInDays < 7) return `${diffInDays} days from now`;
-        if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} week${Math.floor(diffInDays / 7) > 1 ? 's' : ''} from now`;
-        return `${Math.floor(diffInDays / 30)} month${Math.floor(diffInDays / 30) > 1 ? 's' : ''} from now`;
-    } catch (error) {
-        console.error('Error parsing date:', error);
-        return dateString; // Return original string if parsing fails
-    }
-}

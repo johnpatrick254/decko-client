@@ -94,14 +94,13 @@ const Share = ({ url, title }: { url: string, title: string }) => {
   return (
     <Button
       onClick={handleShare}
-      variant="outline"
-      className="p-2 h-10 shadow-md w-10 text-sm rounded-full border z-50 border-gray-400 ease-in-out"
+      className="p-0.5 h-11 shadow-md w-11 text-sm rounded-full border z-50 border-gray-400 ease-in-out"
       title={copied ? 'Copied!' : 'Share'}
       aria-label={copied ? 'Copied!' : 'Share'}
     >
       {copied ?
-        <Check className="h-4 w-4" /> :
-        <Share2 className="h-4 w-4 " />
+        <Check size={18} /> :
+        <Share2 size={18}/>
       }
     </Button>
   );

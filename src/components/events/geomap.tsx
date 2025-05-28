@@ -19,7 +19,7 @@ export default function GoogleMap({
     title = "Event Location",
     venue,
     address,
-    zoom = 16,
+    zoom = 12,
     height = "256px",
     className = ""
 }: GoogleMapProps) {
@@ -33,7 +33,7 @@ export default function GoogleMap({
         if (!isGoogleMapsLoaded || !coordinates || !mapRef.current || loadError) return;
 
         try {
-            const [longitude, latitude] = coordinates;
+            const [latitude, longitude] = coordinates;
 
             // Validate coordinates
             if (isNaN(latitude) || isNaN(longitude)) {
@@ -60,7 +60,7 @@ export default function GoogleMap({
 
             // Add prominent marker
             const marker = new google.maps.Marker({
-                position: { lat: latitude, lng: longitude },
+                position: { lng: longitude, lat: latitude },
                 map: mapInstance,
                 title: title,
                 animation: google.maps.Animation.DROP
@@ -75,11 +75,6 @@ export default function GoogleMap({
                     ${venue ? `
                         <p style="margin: 0 0 4px 0; color: #6b7280;">
                             📍 ${venue}
-                        </p>
-                    ` : ''}
-                    ${address ? `
-                        <p style="margin: 0; color: #6b7280; font-size: 14px;">
-                            ${address}
                         </p>
                     ` : ''}
                 </div>

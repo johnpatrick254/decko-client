@@ -61,15 +61,7 @@ export default function SavedEventCard({
                             {distance}
                         </Badge>
                     )}
-                    {tags.map((tag) => {
-                        return <Badge
-                            key={tag}
-                            variant="outline"
-                            className="bg-black/50 text-white border-white/20"
-                        >
-                            {tag}
-                        </Badge>
-})}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                 
                 </div>
             </div>
         </div>

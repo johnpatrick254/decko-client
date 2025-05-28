@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, Suspense, ReactElement, JSXElementConstructor, ReactNode, ReactPortal, Key } from "react"
 import { motion, useAnimation, useMotionValue, useTransform, type PanInfo, AnimatePresence } from "framer-motion"
-import { AlertCircle, CalendarDays, DollarSign, ExternalLinkIcon, HeartIcon } from "lucide-react"
+import { AlertCircle, CalendarDays, CalendarIcon, DollarSign, ExternalLinkIcon, HeartIcon, Link2Icon, Loader2, MapPinIcon, ShareIcon } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { formatDateParts, formatTimeWithTimezone } from "@/lib/utils"
+import { formatDateParts, formatEventDate, formatTimeWithTimezone, getRelativeTime } from "@/lib/utils"
 import fallbackImage from "../../../public/Image-folder.jpg"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import EmptyState from "@/components/shared/emptystate"
@@ -17,10 +17,15 @@ import { usePostHog } from "posthog-js/react"
 import { getUserId } from "@/lib/getuserid"
 import Image from "next/image"
 import Link from "next/link"
-import { type Event, useRegisterEventOpenMutation } from "@/store/services/events.api"
+import { type Event, useAttendEventMutation, useRegisterEventOpenMutation } from "@/store/services/events.api"
 import { useTutorial } from "@/provider/tutorialprovider"
 import { TutorialCardManager } from "@/components/tutorial/TutorialCardManager"
 import ShareButton from "../header/share"
+import { Badge } from "../ui/badge"
+import { Button } from "../ui/button"
+import GoogleMap from "./geomap"
+import { calculateDistance } from "@/lib/geolocation"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 
 export function EventCards() {
     const searchParams = useSearchParams();
@@ -60,6 +65,7 @@ export function EventCards() {
     const PROD = process.env.NODE_ENV === "production" || false;
     const posthog = usePostHog();
     const [registerEventOpen] = useRegisterEventOpenMutation();
+    const [attendEvent, { isLoading: isUpdating }] = useAttendEventMutation();
 
     // We only need to know if the tutorial is active to adjust the UI
     const { showTutorial } = useTutorial();
@@ -124,7 +130,7 @@ export function EventCards() {
                     // Move entire stack up, leaving only 20% visible at top of screen
                     stackControls
                         .start({
-                            y: "-85vh", // Move up to leave just 20% visible
+                            y: "-82vh", // Move up to leave just 20% visible
                             transition: { type: "tween" },
                         })
                         .then(() => {
@@ -200,6 +206,30 @@ export function EventCards() {
         }
     }, [isArticleVisible, isTopTrayVisible, stackControls, events]);
 
+    const handleAttendingToggle = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        if (isUpdating || !activeEvent) return;
+
+        try {
+            posthog.identify(getUserId());
+
+            if (!activeEvent?.attending) {
+                if (PROD) {
+                    posthog.capture("event_attended", {
+                        eventTitle: activeEvent.eventname,
+                        eventId: activeEvent.id
+                    });
+                }
+            }
+
+            await attendEvent({ id: activeEvent.id });
+        } catch (error) {
+            console.error('Failed to update attending status:', error);
+        }
+    };
+
     const handleCardDrag = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
         // Skip if there are no news items
         if (!eventFromId && !events) return;
@@ -227,7 +257,7 @@ export function EventCards() {
                 // Allow dragging down to close article
                 if (info.offset.y > 0) {
                     const dragAmount = Math.min(info.offset.y, window.innerHeight * 0.85) // 85vh max
-                    cardY.set(-window.innerHeight * 0.8 + dragAmount)
+                    cardY.set(-window.innerHeight * 0.85 + dragAmount)
                 }
             } else if (isTopTrayVisible) {
                 // Allow dragging up to close tray
@@ -292,7 +322,7 @@ export function EventCards() {
                         // -20vh threshold
                         // Keep article visible by keeping active card up, leaving just 20% visible
                         cardControls.start({
-                            y: window.innerHeight * -0.85,
+                            y: window.innerHeight * -0.82,
                             transition: { type: "tween" },
                         })
                         // Only track if the article wasn't already visible
@@ -345,7 +375,7 @@ export function EventCards() {
                 } else {
                     // Return to article view
                     cardControls.start({
-                        y: window.innerHeight * -0.85,
+                        y: window.innerHeight * -0.82,
                         transition: { type: "tween" },
                     })
                 }
@@ -435,14 +465,31 @@ export function EventCards() {
         return events.slice(0, 3)
     }
 
+    const placeHolder = 'https://placehold.co/600x400/png?text=Image+Processing+Failed';
+    const imageUrl = activeEvent?.imagedata.alts[1]?.imgUrl;
+    let distanceInMiles = null
+    const userCoords = localStorage.getItem('user_coordinates')
+    if (userCoords && activeEvent && activeEvent.geolocation?.length) {
+        try {
+            const parsedCoordinates = (JSON.parse(userCoords) as string[]);
+            const distance = calculateDistance(
+                +parsedCoordinates[0],
+                +parsedCoordinates[1],
+                +activeEvent.geolocation[0],
+                +activeEvent.geolocation[1]
+            )
+            distanceInMiles = distance;
+        } catch (error) {
+            console.error('Error parsing coordinates:', error);
+        }
+
+    }
     return (
-        <div className="relative h-screen w-full overflow-hidden font-sans flex justify-center items-center">
+        <div className="relative font-sans flex justify-center items-center">
 
             {/* iPhone Max width container - all elements will be constrained to this width */}
-            <div className="relative w-full h-full flex justify-center">
-                <div className='absolute justify-self-end flex flex-col w-max right-0 gap-3 p-5'>
-                    <ShareButton title={activeEvent?.eventname ?? "Fast news"} url={`${origin}/events/${activeEvent?.id}?id=${activeEvent?.id}`} />
-                </div>
+            <div className="relative  flex justify-center">
+
                 {/* Main content container */}
                 <motion.div className="relative h-full w-full flex items-center justify-center" animate={stackControls}>
                     {/* Loading state */}
@@ -486,12 +533,12 @@ export function EventCards() {
                     {!isLoading && ((events && events.length > 0) || (eventFromId && eventFromId.length > 0)) && (
                         <div className="relative w-full h-full flex items-start justify-center pt-[11vh]">
                             {/* Tutorial Card Manager - handles all tutorial-related rendering */}
-                            {showTutorial && <TutorialCardManager fallbackImage={fallbackImage} textSize={textSize} />}
+                            {/* {showTutorial && <TutorialCardManager fallbackImage={fallbackImage} textSize={textSize} />} */}
                             {/* Render multiple cards in stack */}
                             {visibleCards().map((eventItem, index) => (
                                 <motion.div
                                     key={`${eventItem.id}-${index}`}
-                                    className="absolute standard-card mx-auto ring-1 ring-card-foreground/10 shadow-md h-[84dvh] event-card"
+                                    className="absolute rounded-xl overflow-hidden shadow-md standard-card mx-auto ring-1 ring-card-foreground/10 h-[84dvh] event-card z-50"
                                     data-event={index === 0 ? JSON.stringify(eventItem) : ''}
                                     // Only apply animations to the top card (index 0)
                                     animate={index === 0 ? cardControls : undefined}
@@ -522,91 +569,60 @@ export function EventCards() {
                                     onDrag={handleCardDrag}
                                     onDragEnd={index === 0 ? handleCardDragEnd : undefined}
                                 >
-                                    <div className="bg-background h-full rounded-xl overflow-hidden shadow-xl flex flex-col">
-                                        <div className="absolute h-full w-full -z-0 flex-1 min-h-[15%] overflow-hidden bg-neutral-100 dark:bg-neutral-900">
-                                            <Image
-                                                quality={100}
-                                                fill={true}
-                                                priority
-                                                src={eventItem.imagedata.selectedImg ?? fallbackImage.src}
-                                                alt={`Illustration for ${eventItem?.eventname}`}
-                                                className={clsx(
-                                                    `transition-transform hover:scale-105 duration-300`,
-                                                )}
-                                            />
+                                    <div className="bg-background relative h-full w-[94vw] flex flex-col">
+                                        <div className="relative w-full flex gap-3 justify-end p-3">
+                                            {
+                                                activeEvent?.metadata?.google_calendar_url
+                                                &&
+                                                <Link href={activeEvent.metadata?.google_calendar_url ?? "#"} target="_blank" className="flex justify-between items-center gap-1 z-50">
+                                                    <div
+                                                        className="h-11 w-11 flex items-center justify-center rounded-full bg-card-foreground border-2 p-2 cursor-pointer transition-colors duration-200"
+                                                        title="Add to Google Calendar"
+                                                    >
+                                                        <CalendarDays size={18} className="text-primary-foreground" />
+                                                    </div>
+                                                </Link>
+                                            }
+                                            <ShareButton title={activeEvent?.eventname ?? "Decko"} url={`${origin}/events/${activeEvent?.id}?id=${activeEvent?.id}`} />
                                         </div>
-                                        <div className={`p-3  h-full z-20 flex flex-col items-start justify-end hide-scroll bg-gradient-to-t from-card via-card to-transparent from-0% to-55%`}>
-                                            <Link
-                                                href={eventItem.metadata?.google_calendar_url ?? "#"}
-                                                className=" flex ml-auto mb-auto items-center justify-center rounded-full bg-card-foreground border-2 p-2 cursor-pointer transition-colors duration-200"
-                                                title="Add to Google Calendar"
-                                                target="blank"
-                                            >
-                                                <CalendarDays size={24} className="text-primary-foreground" />
-                                            </Link>
-                                            <div className=
-                                                {clsx("flex flex-wrap w-full gap-2  mb-2 ", {
-                                                    "text-[0.55rem]": textSize === 'sm',
-                                                    "text-[0.65rem]": textSize === 'md',
-                                                    "text-[0.8rem]": textSize === 'lg'
-                                                })}
-
-                                            >
-
-                                                {(!!eventItem?.metadata?.price  ) && (
-                                                    <div className="inline-flex items-center gap-1 bg-emerald-600/90 text-white px-2 py-1 rounded-full font-medium shadow-md">
-                                                        <DollarSign className="w-3 h-3" />
-                                                        <span>{eventItem.metadata?.price}</span>
-                                                    </div>
-                                                )}
-                                                {eventItem?.metadata?.soldOut && (
-                                                    <div className="inline-flex items-center gap-1 bg-red-600/90 text-white px-2 py-1 rounded-full font-medium shadow-md">
-                                                        <AlertCircle className="w-3 h-3" />
-                                                        <span>Sold Out</span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <h3
-                                                className={
-                                                    clsx("flex font-bold max-h-fit  pb-1 relative", {
-                                                        "text-[1.2rem]": textSize === 'sm',
-                                                        "text-[1.56rem]": textSize === 'md',
-                                                        "text-[1.92rem]": textSize === 'lg'
-                                                    })}
-                                            >
-                                                {eventItem?.eventname}
+                                        <div className="absolute h-full-w-full inset-0 bg-gradient-to-t from-black via-black/70 to-primary-black/40 z-10" ></div>
+                                        <img src={imageUrl == placeHolder ? fallbackImage.src : imageUrl} alt={activeEvent?.eventname} className="absolute inset-0 h-full w-full" />
+                                        <div className="absolute inset-x-0 bottom-0 z-20 p-4  text-white">
+                                            <h3 className="text-xl font-bold leading-tight mb-3">
+                                                {activeEvent?.eventname}
                                             </h3>
-
-                                            <div className={
-                                                clsx(
-                                                    `text-sm flex items-start justify-start w-full gap-4 text-neutral-600 dark:text-neutral-300 leading-relaxed`,
-                                                    {
-                                                        "text-[0.9rem]": textSize === 'sm',
-                                                        "text-[1.05rem]": textSize === 'md',
-                                                        "text-[1.2rem]": textSize === 'lg'
-                                                    })
-                                            }>
-                                                <div className="self-center flex flex-col items-center">
-                                                    <div className="w-16 h-16 rounded-md overflow-hidden flex flex-col border border-neutral-300 dark:border-neutral-600">
-                                                        <div className="bg-card-foreground text-primary-foreground font-medium py-1 text-center">
-                                                            {formatDateParts(eventItem?.eventstartdatetime).month}
-                                                        </div>
-                                                        <div className="flex-1 bg-white dark:bg-neutral-800 flex items-center justify-center">
-                                                            <span className="font-bold">{formatDateParts(eventItem?.eventstartdatetime).day}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="rounded-md flex flex-col items-start gap-1">
-                                                    <span className="font-bold">Location</span>
-                                                    {eventItem?.metadata?.address ?? eventItem.eventvenuename}
-                                                </div>
-                                                <div className="flex flex-col items-start gap-1 ml-auto min-w-20">
-                                                    <span className="font-bold">Start Time</span>
-                                                    <p className="p-0 w-16">
-                                                        {formatTimeWithTimezone(eventItem?.eventstartdatetime)}
-                                                    </p>
-                                                </div>
+                                            <p className="text-sm opacity-90 mb-1.5">
+                                                {activeEvent?.eventstartdatetime && formatEventDate(activeEvent.eventstartdatetime)}
+                                            </p>
+                                            <p className="text-sm opacity-90">
+                                                {activeEvent?.eventvenuename}
+                                            </p>
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                {activeEvent?.metadata.price !== '0' && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="bg-primary-foreground/50 text-white border-white/20"
+                                                    >
+                                                        {activeEvent?.metadata.price}
+                                                    </Badge>
+                                                )}
+                                                {distanceInMiles && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="bg-primary-foreground/50 text-white border-white/20"
+                                                    >
+                                                        {distanceInMiles} miles
+                                                    </Badge>
+                                                )}
+                                                {activeEvent?.metadata.eventTags.Categories.map((tag) => {
+                                                    return <Badge
+                                                        key={tag}
+                                                        variant="outline"
+                                                        className="bg-primary-foreground/50 text-white border-white/20"
+                                                    >
+                                                        {tag}
+                                                    </Badge>
+                                                })}
                                             </div>
                                         </div>
                                     </div>
@@ -616,7 +632,7 @@ export function EventCards() {
                             {/* Swipe indicator icons */}
                             {showSwipeIcon && (
                                 <motion.div
-                                    className="absolute top-[30%] -translate-y-1/2 z-30 pointer-events-none"
+                                    className="fixed top-[50%] -translate-y-1/2 z-30 pointer-events-none"
                                     style={{
                                         opacity: swipeIconOpacity,
                                         x: swipeDirection === "left" ? "-30%" : "50%",
@@ -695,50 +711,164 @@ export function EventCards() {
                         </div>
                     )}
                 </motion.div>
-                <div className="absolute top-[12dvh] h-full mx-auto max-w-[900px]">
+                <div className="absolute overflow-auto w-screen max-w-[740px]">
                     {/* Article Content - Positioned 25% down from the top and 0% from bottom */}
                     {isArticleVisible && activeEvent && (
-                        <div className="h-full mx-auto w-full px-6 z-5">
-                            <div className="w-full flex justify-center gap-8 px-1.5 border-neutral-200 dark:border-neutral-700 mb-4">
-                                {
-                                    activeEvent.metadata?.google_calendar_url
-                                    &&
-                                    <Link href={activeEvent.metadata?.google_calendar_url ?? "#"} target="_blank" className="flex justify-between items-center gap-1">
-                                        <div
-                                            className="h-9 w-9 flex items-center justify-center rounded-full bg-card-foreground border-2 p-2 cursor-pointer transition-colors duration-200"
-                                            title="Add to Google Calendar"
-                                        >
-                                            <CalendarDays size={14} className="text-primary-foreground" />
+                        <div className="mx-auto w-full h-[140vh] pb-[42vh] z-5">
+                            <div className="flex h-full flex-col">
+                                {/* Image section */}
+                                <div className="relative h-60 w-full">
+                                    <img
+                                        src={activeEvent.imagedata?.selectedImg || activeEvent.imageUrl || '/placeholder-event.jpg'}
+                                        alt={activeEvent.eventname || 'Event'}
+                                        className="h-full w-full object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+                                    <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                                        <h1 className="text-3xl font-bold">{activeEvent.eventname}</h1>
+                                        <div className="mt-2 space-y-1">
+                                            <div className="flex items-center gap-2 text-base opacity-90">
+                                                <CalendarIcon className="h-4 w-4 text-white" />
+                                                <span>{formatEventDate(activeEvent.eventstartdatetime)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-base opacity-90">
+                                                <MapPinIcon className="h-4 w-4 text-white" />
+                                                <span>{distanceInMiles}</span>
+                                            </div>
                                         </div>
-                                        <span className="font-medium text-sm">Add to Calender</span>
-                                    </Link>
-                                }
-                                {
-                                    activeEvent.metadata?.url
-                                    &&
-                                    <Link href={activeEvent.metadata?.url ?? "#"} target="_blank" className="flex justify-between items-center gap-1">
-                                        <div
-                                            className="h-9 w-9 flex items-center justify-center rounded-full bg-card-foreground border-2 p-2 cursor-pointer transition-colors duration-200"
-                                            title="Add to Google Calendar"
-                                        >
-                                            <ExternalLinkIcon size={14} className="text-primary-foreground" />
+                                    </div>
+                                </div>
+
+                                {/* Content section */}
+                                <div className="flex-1 overflow-y-auto">
+                                    <div className="max-w-4xl mx-auto p-6 w-full">
+                                        <div className="space-y-6">
+                                            {/* Event details */}
+                                            <div className="space-y-4">
+                                                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                                                    <div className="flex items-center gap-1">
+                                                        <CalendarIcon className="h-4 w-4" />
+                                                        <span>{formatEventDate(activeEvent.eventstartdatetime)}</span>
+                                                    </div>
+                                                    {/* Distance calculation would need user's location */}
+                                                    {distanceInMiles && <div className="flex items-center gap-1">
+                                                        <MapPinIcon className="h-4 w-4" />
+                                                        <span>{distanceInMiles} miles</span>
+                                                    </div>}
+                                                    {/* Attending button positioned absolutely at bottom right */}
+                                                    <div className=" right-3 z-[5]">
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    {isUpdating ? (
+                                                                        <div className="bg-primary/80 rounded-sm px-2 py-1 shadow-md z-[10] cursor-wait text-md  font-medium text-primary-foreground flex items-center gap-1">
+                                                                            <Loader2 className="h-3 w-3 text-primary-foreground animate-spin" />
+                                                                            Updating...
+                                                                        </div>
+                                                                    ) : activeEvent.attending ? (
+                                                                        <button
+                                                                            onClick={handleAttendingToggle}
+                                                                            disabled={isUpdating}
+                                                                            className="bg-primary rounded-sm px-2 py-1 shadow-md z-[10] cursor-pointer text-md  font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus:ring-2 focus:ring-primary/30 focus:outline-none hover:scale-105"
+                                                                            aria-label="Mark as not attending"
+                                                                        >
+                                                                            Attending
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button
+                                                                            onClick={handleAttendingToggle}
+                                                                            disabled={isUpdating}
+                                                                            className="bg-muted rounded-sm px-2 py-1 shadow-md z-[10] cursor-pointer text-md  font-medium border border-border hover:bg-muted/80 transition-colors focus:ring-2 focus:ring-muted/50 focus:outline-none hover:scale-105"
+                                                                            aria-label="Mark as attending"
+                                                                        >
+                                                                            Not Attending
+                                                                        </button>
+                                                                    )}
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    {isUpdating ? (
+                                                                        <p>Updating attendance status...</p>
+                                                                    ) : (
+                                                                        <p>Click to {activeEvent.attending ? 'remove' : 'add'} yourself as attending</p>
+                                                                    )}
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {activeEvent.metadata?.price && (
+                                                        <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800">
+                                                            {activeEvent.metadata.price}
+                                                        </Badge>
+                                                    )}
+                                                    {activeEvent.metadata?.soldOut && (
+                                                        <Badge variant="outline" className="bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200">
+                                                            Sold Out
+                                                        </Badge>
+                                                    )}
+                                                    {activeEvent.metadata?.eventTags?.Categories?.map((category: boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | Key | null | undefined) => (
+                                                        <Badge key={category?.toString()} variant="outline" className="bg-gray-100 dark:bg-gray-800">
+                                                            {category}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            {/* Action buttons */}
+                                            <div className="flex justify-start flex-wrap gap-4">
+                                                {activeEvent.metadata?.url && (
+                                                    <Button variant="outline" className="flex items-center">
+                                                        <Link2Icon />
+                                                        <a href={activeEvent.metadata.url} target="_blank" rel="noopener noreferrer">
+                                                        Visit source
+                                                        </a>
+                                                    </Button>
+                                                )}
+                                                {activeEvent.metadata?.google_calendar_url && (
+                                                    <Button asChild>
+                                                        <a href={activeEvent.metadata.google_calendar_url} target="_blank" rel="noopener noreferrer">
+                                                            Add to Calendar
+                                                        </a>
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            {/* About section */}
+                                            <div className="rounded-lg bg-gray-100 p-4 dark:bg-gray-800">
+                                                <h3 className="mb-2 font-medium">About this event</h3>
+                                                <p className="text-sm text-gray-600 dark:text-gray-300">
+                                                    {activeEvent.metadata?.eventLongDescription || activeEvent.eventdescription ||
+                                                        `Join us for ${activeEvent.eventname}. This event will be held at ${activeEvent.eventvenuename} in ${activeEvent.city}, ${activeEvent.state}.`}
+                                                </p>
+                                            </div>
+
+                                            {/* Additional event info */}
+                                            {activeEvent.metadata?.address && (
+                                                <div className="space-y-4">
+                                                    <h3 className="font-medium">Address</h3>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                                                        {activeEvent.metadata.address}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Map section */}
+                                            <div className="space-y-4">
+                                                <h3 className="font-medium">Location</h3>
+                                                <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                                                    <GoogleMap
+                                                        coordinates={activeEvent.geolocation as any}
+                                                        title={activeEvent.eventname || 'Event'}
+                                                        venue={activeEvent.eventvenuename}
+                                                        address={`${activeEvent.city}, ${activeEvent.state}`}
+                                                        height="256px"
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
-                                        <span className="font-medium text-sm">Event Link</span>
-                                    </Link>
-                                }
+                                    </div>
+                                </div>
                             </div>
-                            <h4 className="text-sm font-bold px-3 mx-auto w-max mb-3">Description</h4>
-                            <p
-                                id="event-description"
-                                className={clsx("text-primary  leading-relaxed",
-                                    {
-                                        "text-[1.02rem]": textSize === 'sm',
-                                        "text-[1.2rem]": textSize === 'md',
-                                        "text-[1.35rem]": textSize === 'lg'
-                                    })}
-                            >
-                                {(activeEvent.metadata?.eventLongDescription ?? activeEvent.eventdescription ?? "No description available").trim()}
-                            </p>
                         </div>
                     )}
                 </div>
@@ -746,7 +876,7 @@ export function EventCards() {
                 {
                     !isMobile && events && events.length > 0 && (
                         <motion.div
-                            className="absolute bottom-[0.8dvh] right-[2dvh] bg-white/80 backdrop-blur-sm rounded-lg p-2 text-xs text-gray-600"
+                            className="absolute bottom-[0.8dvh] right-[2dvh] bg-white/80 backdrop-blur-sm rounded-lg p-2 text-md  text-gray-600"
                             animate={{
                                 opacity: isArticleVisible || isTopTrayVisible ? 0 : 1,
                             }}

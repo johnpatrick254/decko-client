@@ -193,3 +193,65 @@ export const extractDateFromISOFormatted = (
       return dateStr;
   }
 };
+
+export function getRelativeTime(dateString: string): string {
+  try {
+    // Parse the date from format "Sat, Jul 15 • 7:00 PM"
+    const [_, monthStr, dayStr, timeStr, period] = dateString.split(/[ ,•]+/);
+
+    // Map month abbreviations to numbers (0-11)
+    const months: { [key: string]: number } = {
+      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+    };
+
+    const month = months[monthStr];
+    const day = parseInt(dayStr, 10);
+
+    // Parse time
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    let hours24 = hours;
+
+    if (period === 'PM' && hours < 12) {
+      hours24 = hours + 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours24 = 0;
+    }
+
+    // Create event date (using current year or next year if the event has already passed this year)
+    const now = new Date();
+    let eventDate = new Date(now.getFullYear(), month, day, hours24, minutes);
+
+    // If the event has already passed this year, use next year's date
+    if (eventDate < now) {
+      eventDate = new Date(now.getFullYear() + 1, month, day, hours24, minutes);
+    }
+
+    // Calculate difference in days
+    const diffInMs = eventDate.getTime() - now.getTime();
+    const diffInDays = Math.ceil(diffInMs / (1000 * 60 * 60 * 24));
+
+    // Return appropriate relative time string
+    if (diffInDays < 0) return "Event passed";
+    if (diffInDays === 0) return "Today";
+    if (diffInDays === 1) return "Tomorrow";
+    if (diffInDays < 7) return `${diffInDays} days from now`;
+    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} week${Math.floor(diffInDays / 7) > 1 ? 's' : ''} from now`;
+    return `${Math.floor(diffInDays / 30)} month${Math.floor(diffInDays / 30) > 1 ? 's' : ''} from now`;
+  } catch (error) {
+    console.error('Error parsing date:', error);
+    return dateString; // Return original string if parsing fails
+  }
+}
+
+export const formatEventDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }).replace(',', ' •');
+};
