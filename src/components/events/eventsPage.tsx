@@ -141,7 +141,6 @@ export function EventCards() {
                         setHasRecordedEventOpen(true);
                         try {
                             registerEventOpen({ id: activeEvent.id });
-
                             // Also track in PostHog for analytics
                             if (PROD) {
                                 posthog.identify(getUserId());
@@ -511,7 +510,7 @@ export function EventCards() {
                         <div
                             className="relative w-full h-full flex items-start justify-center pt-[4dvh] "
                         > <motion.div
-                            className="absolute standard-card mx-auto h-[94dvh] flex flex-col items-center justify-center bg-background rounded-3xl shadow-xl custom-shadow p-8"
+                            className="absolute standard-card mx-auto h-[90dvh] w-[94vw] flex flex-col items-center justify-center  rounded-3xl shadow-xl custom-shadow p-8"
                             animate={cardControls}
                             style={{
                                 x: cardX,
@@ -598,7 +597,7 @@ export function EventCards() {
                                                 {activeEvent?.eventvenuename}
                                             </p>
                                             <div className="mt-3 flex flex-wrap gap-2">
-                                                {activeEvent?.metadata.price !== '0' && (
+                                                {activeEvent?.metadata.price?.length && activeEvent?.metadata.price !== '0' && (
                                                     <Badge
                                                         variant="outline"
                                                         className="bg-primary-foreground/50 text-white border-white/20"
@@ -717,7 +716,7 @@ export function EventCards() {
                         <div className="mx-auto w-full h-[140vh] pb-[42vh] z-5">
                             <div className="flex h-full flex-col">
                                 {/* Image section */}
-                                <div className="relative h-60 w-full">
+                                <div className="relative h-76 w-full">
                                     <img
                                         src={activeEvent.imagedata?.selectedImg || activeEvent.imageUrl || '/placeholder-event.jpg'}
                                         alt={activeEvent.eventname || 'Event'}
@@ -733,7 +732,7 @@ export function EventCards() {
                                             </div>
                                             <div className="flex items-center gap-2 text-base opacity-90">
                                                 <MapPinIcon className="h-4 w-4 text-white" />
-                                                <span>{distanceInMiles}</span>
+                                                <span>{distanceInMiles} miles</span>
                                             </div>
                                         </div>
                                     </div>

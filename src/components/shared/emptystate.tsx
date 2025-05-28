@@ -15,9 +15,9 @@ export default function EmptyState({ onRefresh,type }: EmptyStateProps) {
             <div className="bg-gray-100 p-6 rounded-full mb-6">
                 <Inbox className="h-12 w-12 text-gray-400" />
             </div>
-            <h2 className="text-xl font-bold mb-2 text-center">No {type === "Story" ? 'News' :'Events'} Available</h2>
+            <h2 className="text-xl font-bold mb-2 text-center">No Events Found</h2>
             <p className="text-gray-600 text-center mb-8">
-                You've viewed all the available events. Check back later for updates.
+                Please try refreshing.
             </p>
           
         </>
