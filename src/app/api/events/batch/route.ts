@@ -243,6 +243,7 @@ export async function GET(request: NextRequest) {
           eventstartdatetime,
           imagedata,
           createdat,
+          geolocation,
           distance
           FROM event_coords
           WHERE distance <= ${radius}
@@ -313,6 +314,7 @@ export async function GET(request: NextRequest) {
               e.imagedata,
               e.createdat,
               e.metadata,
+              e.geolocation,
               -- Calculate distance in miles using the Haversine formula
               (
           3958.8 *
@@ -350,7 +352,8 @@ export async function GET(request: NextRequest) {
             imagedata,
             createdat,
             distance,
-            metadata
+            metadata,
+            geolocation
           FROM event_coords
           WHERE distance <= ${radius}
           ORDER BY RANDOM()
