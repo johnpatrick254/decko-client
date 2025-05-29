@@ -4,13 +4,21 @@ import * as React from "react"
 import {
     SidebarMenu,
     SidebarMenuButton,
-    SidebarMenuItem
+    SidebarMenuItem,
+    useSidebar
 } from "@/components/ui/sidebar"
 import Image from "next/image"
 import logo from "../../../../public/icon.png"
 import Link from "next/link"
 
 export function BrandLogo() {
+    const {toggleSidebar ,open} = useSidebar();
+    const handleClick =()=>{
+        if(open){
+            toggleSidebar();
+        }
+    }
+
     return (
         <SidebarMenu key="brand-side">
             <SidebarMenuItem>
@@ -18,7 +26,7 @@ export function BrandLogo() {
                     size="lg"
                     className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground mt-2"
                 >
-                   <Link href={'/'} className="flex items-center gap-1">
+                   <Link onClick={handleClick} href={'/'} className="flex items-center gap-1">
                         <div className="flex aspect-square size-8 items-center justify-center rounded-lg  text-sidebar-primary-foreground">
                             <div className="flex w-7 overflow-hidden h-7 ">
                                 <Image
