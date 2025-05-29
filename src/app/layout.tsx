@@ -31,18 +31,18 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Decko",
-  description: "Your daily dose of fast news and events",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://fastnews-client.replit.app"),
+  description: "Your daily dose of interesting and events",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://www.decko.app"),
   openGraph: {
     type: "website",
     title: "Decko",
-    description: "Your daily dose of fast news and events",
+    description: "Your daily dose of interesting and events",
     siteName: "Decko",
   },
   twitter: {
     card: "summary_large_image",
     title: "Decko",
-    description: "Your daily dose of fast news and events",
+    description: "Your daily dose of interesting and events",
   },
 };
 

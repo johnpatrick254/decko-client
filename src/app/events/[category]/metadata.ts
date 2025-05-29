@@ -5,17 +5,17 @@ export async function generateMetadata({ searchParams }: {
 },): Promise<Metadata> {
     const baseMetadata: Metadata = {
         title: "Decko",
-        description: "Your daily dose of breaking news",
+        description: "Your daily dose of interesting events near you",
         openGraph: {
             title: "Decko",
-            description: "Your daily dose of breaking news",
+            description: "Your daily dose of interesting events near you",
             images: ['/favicon.ico'],
             type: 'website',
         },
         twitter: {
             card: 'summary_large_image',
             title: "Decko",
-            description: "Your daily dose of breaking news",
+            description: "Your daily dose of interesting events near you",
             images: ['/favicon.ico'],
         }
     };
@@ -34,10 +34,10 @@ export async function generateMetadata({ searchParams }: {
         const metadata = await response.json();
         return {
             title: metadata.title || "Decko",
-            description: metadata.description || "Your daily dose of breaking news",
+            description: metadata.description || "Your daily dose of interesting events near you",
             openGraph: {
                 title: metadata.title || "Decko",
-                description: metadata.description || "Your daily dose of breaking news",
+                description: metadata.description || "Your daily dose of interesting events near you",
                 images: [{
                     url: metadata.image || '/favicon.ico',
                     width: 1200,
@@ -49,7 +49,7 @@ export async function generateMetadata({ searchParams }: {
             twitter: {
                 card: 'summary_large_image',
                 title: metadata.title || "Decko",
-                description: metadata.description || "Your daily dose of breaking news",
+                description: metadata.description || "Your daily dose of interesting events near you",
                 images: [{
                     url: metadata.image || '/favicon.ico',
                     width: 1200,
