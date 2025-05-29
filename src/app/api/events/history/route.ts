@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     // Get filter parameters
     const categories = searchParams.getAll('category');
-    const filterParam = searchParams.get('filter'); 
+    const filterParam = searchParams.get('filter');
     const page = parseInt(searchParams.get('page') || '1', 10);
     const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
 
@@ -46,9 +46,10 @@ export async function GET(request: NextRequest) {
       VALID_CATEGORIES.includes(filter as Category)
     );
 
-    // Build the where clause
+    // Build the where clause - MAIN CRITERIA: ONLY SAVED EVENTS
     let whereClause: any = {
       user_id: userId,
+      saved: true, // PRIMARY FILTER: Only return saved events
     };
 
     // Add category filtering if valid categories are provided
@@ -63,12 +64,12 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Get total count for pagination (optional - can be expensive for large datasets)
+    // Get total count for pagination
     const totalCount = await prisma.user_event_status.count({
       where: whereClause
     });
 
-    // Get the paginated history events with category filtering
+    // Get the paginated saved events with category filtering
     const historyEvents = await prisma.user_event_status.findMany({
       where: whereClause,
       select: {
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest) {
       return {
         ...historyEvent.events,
         imageUrl: imagedata?.selectedImg || "",
-        saved: historyEvent.saved || false,
+        saved: historyEvent.saved || false, // Will always be true due to our filter
         archived: historyEvent.archived || false,
         attending: historyEvent.attending || false,
         last_interaction_date: historyEvent.last_interaction_date,
@@ -133,7 +134,8 @@ export async function GET(request: NextRequest) {
       // Include applied filters in response for debugging/frontend state
       appliedFilters: {
         categories: validCategories,
-        invalidFilters: allFilters.filter(f => !VALID_CATEGORIES.includes(f as Category))
+        invalidFilters: allFilters.filter(f => !VALID_CATEGORIES.includes(f as Category)),
+        savedOnly: true // Indicate this endpoint only returns saved events
       }
     });
   } catch (error) {

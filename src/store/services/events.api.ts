@@ -1,4 +1,5 @@
 
+import { getUserId } from "@/lib/getuserid";
 import { api } from "../api";
 
 export type Category = "Corporate" | "Sports" | "Music" | "Arts & Entertainment" | "Food & Drink"| "Festival" | "Family" | "Other"
@@ -321,7 +322,73 @@ export const eventApi = api.enhanceEndpoints({ addTagTypes: ['EVENTS'] }).inject
       },
       invalidatesTags: ['EVENTS']
     }),
+    unsaveEvent: builder.mutation<{ success: boolean }, { id: number }>({
+      query: ({ id }) => ({
+        url: `event/${id}/unsave`, // This matches your endpoint structure
+        method: 'POST',
+      }),
+      async onQueryStarted({ id }, { dispatch, queryFulfilled, getState }) {
+        // Optimistically update the saved status in saved events queries
+        const state = getState() as { api: { queries: Record<string, any> } };
+        const savedEventsPatches: { undo: () => void }[] = [];
 
+        // Remove the event from all active getSavedEvents queries
+        Object.entries(state.api.queries).forEach(([queryKey, queryData]) => {
+          if (queryKey.startsWith('getSavedEvents')) {
+            const patch = dispatch(
+              eventApi.util.updateQueryData(
+                'getSavedEvents',
+                queryData.originalArgs,
+                (draft) => {
+                  // Remove the event from the saved events list
+                  draft.events = draft.events.filter(event => event.id !== id);
+                }
+              )
+            );
+            savedEventsPatches.push(patch);
+          }
+        });
+
+        // Update the event status in getEventById query
+        const eventPatchResult = dispatch(
+          eventApi.util.updateQueryData('getEventById', { id }, (draft) => {
+            if (draft) {
+              draft.saved = false;
+            }
+          })
+        );
+
+        // Update history events queries
+        const historyEventsPatches: { undo: () => void }[] = [];
+        Object.entries(state.api.queries).forEach(([queryKey, queryData]) => {
+          if (queryKey.startsWith('getHistoryEvents')) {
+            const patch = dispatch(
+              eventApi.util.updateQueryData(
+                'getHistoryEvents',
+                queryData.originalArgs,
+                (draft) => {
+                  const eventToUpdate = draft.events.find(event => event.id === id);
+                  if (eventToUpdate) {
+                    eventToUpdate.saved = false;
+                  }
+                }
+              )
+            );
+            historyEventsPatches.push(patch);
+          }
+        });
+
+        try {
+          await queryFulfilled;
+        } catch {
+          // If the API call fails, undo all optimistic updates
+          savedEventsPatches.forEach(patch => patch.undo());
+          eventPatchResult.undo();
+          historyEventsPatches.forEach(patch => patch.undo());
+        }
+      },
+      invalidatesTags: ['EVENTS']
+    }),
     getAttendingStatus: builder.query<{ success: boolean, attending: boolean }, { id: number }>({
       query: ({ id }) => `events/attending/${id}`,
       providesTags: ['EVENTS']
@@ -358,5 +425,6 @@ export const {
   useGetAttendingStatusQuery,
   useLazyGetAttendingStatusQuery,
   useShareEventMutation,
-  useRegisterEventOpenMutation
+  useRegisterEventOpenMutation,
+  useUnsaveEventMutation
 } = eventApi;
