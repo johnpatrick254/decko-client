@@ -91,7 +91,7 @@ export default function EventDeck({
   );
   
   return (
-    <Link href={title === "All" ? "/events":`/events/${title}`} className="block">
+    <Link href={`/events/${title}`} className="block">
       {deckContent}
     </Link>
   )
