@@ -21,7 +21,7 @@ export function ThemeSwitcher() {
           defaultValue={'system'}
           onValueChange={(value) => setTheme(value as 'dark' | 'light' | 'system')}
         >
-          <SelectTrigger id="theme-switcher" className="w-max shadow-none !ring-0 outline-none border-none px-0 gap-1.5">
+          <SelectTrigger id="theme-switcher" className="w-max !bg-transparent shadow-none !ring-0 outline-none border-none px-0 gap-1.5">
           {theme == 'system' && <Settings2Icon className="h-4 w-5 " />}
           {theme == 'light' && <Sun className="h-4 w-5 " />}
           {theme == 'dark' && <Moon className="h-4 w-5 " />}
