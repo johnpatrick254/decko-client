@@ -487,7 +487,7 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
             <div className="relative  flex justify-center">
 
                 {/* Main content container */}
-                <motion.div className="relative h-full w-full flex items-center justify-center" animate={stackControls}>
+                <motion.div className="relative h-screen w-full flex items-center justify-center" animate={stackControls}>
                     {/* Loading state */}
                     {isLoading && (
                         <div className="h-[88dvh] w-full flex flex-col items-center justify-center bg-background rounded-3xl shadow-xl mx-4 p-8">
