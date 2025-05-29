@@ -2,11 +2,11 @@ import { useRef } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { EventDeckProps } from "./event-deck";
 import EventDeck from "./events/event-deck";
+import { DeckType } from "@/lib/event-data";
 
 interface DeckCarouselProps {
-  decks: EventDeckProps[];
+  decks: DeckType[];
   className?: string;
   onSelectDeck?: (deckId: string) => void;
 }
@@ -64,7 +64,7 @@ export default function DeckCarousel({
         >
           {sortedDecks.map((deck) => (
             <EventDeck
-              key={deck.id}
+              key={deck.title}
               {...deck}
               onSelect={onSelectDeck}
               className="flex-shrink-0"

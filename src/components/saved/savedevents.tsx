@@ -96,9 +96,6 @@ export const SavePageContent = () => {
   // Handle new data from API
   useEffect(() => {
     if (data?.events) {
-      console.log('New data received:', data.events);
-      console.log('Pagination info:', data.pagination);
-      console.log('Applied filters:', data.appliedFilters);
 
       if (page === 1) {
         // First page - replace all events

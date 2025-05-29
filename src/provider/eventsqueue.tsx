@@ -11,19 +11,20 @@ import {
     useLazyGetRandomEventWithFilterQuery,
     useLazyGetEventByIdQuery,
     SEARCH_LOCATIONS,
+    FILTERS,
+    Category,
 } from "@/store/services/events.api";
 import { useEventFilter } from "./eventfilterprovider";
-import { useMaxDaysOld } from "./maxDaysOldProvider";
 
 interface EventQueueContextType {
     currentEvent: Event | null;
-    nextEvent: () => Promise<Event | null>;
-    fetchBatch: ({ reset, updatedMaxDaysOld }: { reset: null | boolean, location: null | SEARCH_LOCATIONS, updatedMaxDaysOld?: number }) => Promise<void>;
+    nextEvent: (filter: FILTERS | Category) => Promise<Event | null>;
+    fetchBatch: ({ reset, filter }: { reset: null | boolean, location: null | SEARCH_LOCATIONS, filter?: FILTERS | Category }) => Promise<void>;
     fetchEventById: (id: number) => Promise<Event | undefined>;
-    fetchRandomEvent: () => Promise<void>;
+    fetchRandomEvent: (filter:  FILTERS | Category ) => Promise<void>;
     preloadNextFiveImages: () => Promise<void>;
     setFilter: (filterLocation: SEARCH_LOCATIONS) => void;
-    resetQueue: (filterLocation: SEARCH_LOCATIONS,updatedMaxDaysOld?: number) => void;
+    resetQueue: (filterLocation: SEARCH_LOCATIONS, filter?: FILTERS | Category) => void;
     queue: Event[] | null;
     loading: boolean;
     fetchInProgress: boolean;
@@ -53,13 +54,14 @@ export const EventQueueProvider: React.FC<EventQueueProviderProps> = ({
     children,
 }) => {
     const { searchLocation, saveSearchLocation } = useEventFilter();
-    const { maxDaysOld } = useMaxDaysOld();
     const [queue, setQueue] = useState<Event[]>([]);
     const [currentEvent, setCurrentEvent] = useState<Event | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
     const [fetchInProgress, setFetchInProgress] = useState(false);
-    const minThreshold = 15;
+    const [currentFilter, setCurrentFilter] = useState<FILTERS | Category>("All");
+
+    const minThreshold = 5;
 
     const [triggerBatchFetch] = useLazyGetBatchEventsWithFilterQuery();
     const [triggerRandomFetch] = useLazyGetRandomEventWithFilterQuery();
@@ -74,14 +76,15 @@ export const EventQueueProvider: React.FC<EventQueueProviderProps> = ({
 
     // Define fetchBatch first since it's used by resetQueue
     const fetchBatch = useCallback(
-        async ({ reset = null, location = null, updatedMaxDaysOld = null }: { reset: boolean | null, location: SEARCH_LOCATIONS | null, updatedMaxDaysOld?: number | null }) => {
+        async ({ reset = null, location = null, filter = "All" }: { reset: boolean | null, location: SEARCH_LOCATIONS | null, filter?: FILTERS | Category }) => {
             if (fetchInProgress) return;
+            setCurrentFilter(filter)
             !queue.length && setFetchInProgress(true);
             try {
                 const result = await triggerBatchFetch({
-                    limit: 25,
+                    limit: 15,
                     location: location ?? searchLocation,
-                    maxDaysOld: updatedMaxDaysOld ?? maxDaysOld
+                    filter: filter ?? currentFilter
                 }).unwrap();
 
                 if (Array.isArray(result)) {
@@ -105,14 +108,14 @@ export const EventQueueProvider: React.FC<EventQueueProviderProps> = ({
                 setLoading(false);
             }
         },
-        [fetchInProgress, triggerBatchFetch, queue.length, searchLocation, maxDaysOld],
+        [fetchInProgress, triggerBatchFetch, queue.length, searchLocation],
     );
 
     // Define resetQueue next since it's used by fetchRandomEvent and fetchEventById
-    const resetQueue = (location: SEARCH_LOCATIONS,updatedMaxDaysOld?: number) => {
+    const resetQueue = (location: SEARCH_LOCATIONS, filter?: FILTERS | Category) => {
         setCurrentEvent(null);
         setQueue([]);
-        fetchBatch({ reset: true, location,updatedMaxDaysOld });
+        fetchBatch({ reset: true, location,filter });
     };
 
     // Now define the functions that depend on resetQueue
@@ -132,17 +135,19 @@ export const EventQueueProvider: React.FC<EventQueueProviderProps> = ({
         }
     }, [searchLocation, resetQueue, triggerGetEventById]);
 
-    const fetchRandomEvent = useCallback(async () => {
+    const fetchRandomEvent = useCallback(async (filter: FILTERS | Category ="All") => {
+        setCurrentFilter(filter)
         setLoading(true);
         setError(null);
-        resetQueue(searchLocation);
+        resetQueue(searchLocation,filter);
     }, [searchLocation, resetQueue]);
 
-    const nextEvent = useCallback(async (): Promise<Event | null> => {
+    const nextEvent = useCallback(async (filter: FILTERS | Category="All"): Promise<Event | null> => {
         try {
+            setCurrentFilter(filter)
             if (queue.length < minThreshold) {
                 setLoading(true)
-                fetchBatch({ reset: null, location: null });
+                fetchBatch({ reset: null, location: null, filter });
             }
             const nextEvent = queue[0];
             setCurrentEvent(nextEvent);
@@ -155,13 +160,13 @@ export const EventQueueProvider: React.FC<EventQueueProviderProps> = ({
         } finally {
             setLoading(false);
         }
-    }, [queue, fetchBatch, triggerRandomFetch, maxDaysOld, minThreshold]);
+    }, [queue, fetchBatch, triggerRandomFetch, minThreshold]);
 
     const setFilter = (filterLocation: SEARCH_LOCATIONS) => {
         setLoading(true);
         saveSearchLocation(filterLocation);
         setCurrentEvent(null)
-        resetQueue(filterLocation);
+        resetQueue(filterLocation, currentFilter);
     };
 
     const setPreviousEvent = useCallback((event: Event) => {

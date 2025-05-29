@@ -2,11 +2,113 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { parseLocationParam, triggerRecommendations } from '@/lib/eventHelpers';
 import { Prisma } from '@prisma/client';
+import { Category, FILTERS } from '@/store/services/events.api';
 
 // Cache for event counts by location radius
 const eventCountCache = new Map<string, { count: number, timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
+// Function to generate filter conditions for Prisma SQL
+// Function to generate filter conditions for Prisma SQL
+// Function to generate filter conditions for Prisma SQL
+function generateEventFilterCondition(filter: FILTERS | Category): Prisma.Sql {
+  const getCurrentDate = () => new Date().toISOString().split('T')[0];
+
+  const getCurrentWeekendDates = () => {
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
+    let startDate = new Date(now);
+    let endDate = new Date(now);
+
+    if (currentDay === 0) {
+      // Today is Sunday - show events from now until end of Sunday
+      startDate = new Date(now);
+      endDate = new Date(now);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (currentDay === 6) {
+      // Today is Saturday - show events from now until end of Sunday
+      startDate = new Date(now);
+      endDate = new Date(now);
+      endDate.setDate(now.getDate() + 1); // Tomorrow (Sunday)
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      // Monday through Friday - show events from upcoming Saturday through Sunday
+      const daysUntilSaturday = 6 - currentDay;
+
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() + daysUntilSaturday);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 1); // Sunday
+      endDate.setHours(23, 59, 59, 999);
+    }
+
+    return {
+      start: startDate.toISOString(),
+      end: endDate.toISOString()
+    };
+  };
+
+  const getNextWeekDates = () => {
+    const now = new Date();
+    const currentDay = now.getDay();
+
+    const daysUntilNextMonday = currentDay === 0 ? 1 : 8 - currentDay;
+
+    const nextMonday = new Date(now);
+    nextMonday.setDate(now.getDate() + daysUntilNextMonday);
+    nextMonday.setHours(0, 0, 0, 0);
+
+    const nextSunday = new Date(nextMonday);
+    nextSunday.setDate(nextMonday.getDate() + 6);
+    nextSunday.setHours(23, 59, 59, 999);
+
+    console.log('Next Week Debug:', {
+      today: now.toISOString(),
+      currentDay,
+      daysUntilNextMonday,
+      nextMonday: nextMonday.toISOString(),
+      nextSunday: nextSunday.toISOString()
+    });
+
+    return {
+      start: nextMonday.toISOString(),
+      end: nextSunday.toISOString()
+    };
+  };
+
+  switch (filter) {
+    case "All":
+      return Prisma.sql`TRUE`;
+
+    case "This Weekend": {
+      const weekend = getCurrentWeekendDates();
+      // Cast the date strings to timestamptz to fix the type mismatch
+      return Prisma.sql`e.eventstartdatetime >= ${weekend.start}::timestamptz AND e.eventstartdatetime <= ${weekend.end}::timestamptz`;
+    }
+
+    case "Next Week": {
+      const nextWeek = getNextWeekDates();
+      // Cast the date strings to timestamptz to fix the type mismatch
+      return Prisma.sql`e.eventstartdatetime >= ${nextWeek.start}::timestamptz AND e.eventstartdatetime <= ${nextWeek.end}::timestamptz`;
+    }
+
+    // PostgreSQL JSON query syntax
+    case "Corporate":
+    case "Sports":
+    case "Music":
+    case "Arts & Entertainment":
+    case "Food & Drink":
+    case "Festival":
+    case "Family":
+    case "Other":
+      return Prisma.sql`e.metadata->'eventTags'->'Categories' ? ${filter}`;
+
+    default:
+      return Prisma.sql`TRUE`;
+  }
+}
 // Function to trigger recommendations in the background without awaiting
 function triggerRecommendationsAsync(userId: string, userLat?: number, userLong?: number) {
   // Use setTimeout with 0ms to push this to the next event loop iteration
@@ -23,13 +125,16 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const locationParam = searchParams.get('location');
     const [userLat, userLong] = parseLocationParam(locationParam);
-    const radius = searchParams.get('radius') ? parseFloat(searchParams.get('radius')!) : 100; // Default 100 mile radius
-    const maxDaysOld = searchParams.get('maxDaysOld') ? parseInt(searchParams.get('maxDaysOld')!, 10) : undefined; // Parameter for filtering events within next X days
+    const radius = searchParams.get('radius') ? parseFloat(searchParams.get('radius')!) : 100;
+    const filter = decodeURIComponent(searchParams.get('filter') || 'All') as FILTERS | Category;
 
     const today = new Date();
-    // Calculate the future cutoff date if maxDaysOld is provided (today + maxDaysOld days)
-    const futureCutoffDate = maxDaysOld !== undefined ? new Date(today.getTime() + maxDaysOld * 24 * 60 * 60 * 1000) : undefined;
     const userId = request.headers.get('x-user-id') || 'default_user';
+
+    // Generate the filter condition
+    const filterCondition = generateEventFilterCondition(filter);
+
+    console.log("\n\n>>>>>>>>>", filterCondition, "/\n\n")
 
     // Create a location key for caching
     const locationKey = `${userLat.toFixed(4)},${userLong.toFixed(4)},${radius}`;
@@ -53,9 +158,6 @@ export async function GET(request: NextRequest) {
     // Check if we have a cached count for this location
     const cachedCount = eventCountCache.get(locationKey);
     let eventsInRadiusCount = 0;
-
-    // If we don't have a valid cache entry, we'll need to check the count later
-    const needsCountCheck = !cachedCount || (Date.now() - cachedCount.timestamp > CACHE_TTL);
 
     // If we have a valid cache entry and it shows fewer than 100 events, trigger recommendations
     if (cachedCount && cachedCount.count < 50) {
@@ -128,10 +230,10 @@ export async function GET(request: NextRequest) {
           WHERE
           e.id IN (${Prisma.join(idsToUse)}) AND
           e.eventstartdatetime > ${today} AND
-          ${futureCutoffDate ? Prisma.sql`e.eventstartdatetime <= ${futureCutoffDate} AND` : Prisma.sql``}
           e.geolocation IS NOT NULL AND
           (ues.archived IS NULL OR ues.archived = false) AND
-          (ues.saved IS NULL OR ues.saved = false)
+          (ues.saved IS NULL OR ues.saved = false) AND
+          ${filterCondition}
           )
           SELECT
           id,
@@ -154,15 +256,15 @@ export async function GET(request: NextRequest) {
         events = recommendedEvents;
 
         // If we have fewer recommended events within radius than requested and need to check count
-        if (events.length < idsToUse.length && needsCountCheck) {
+        if (events.length < idsToUse.length) {
           // Use a simpler, faster count query
           const countQuery = Prisma.sql`
             SELECT COUNT(*) as count
             FROM events e
             WHERE
               e.eventstartdatetime > ${today} AND
-              ${futureCutoffDate ? Prisma.sql`e.eventstartdatetime <= ${futureCutoffDate} AND` : Prisma.sql``}
               e.geolocation IS NOT NULL AND
+              ${filterCondition} AND
               (
                 3958.8 * acos(
                   cos(radians(${userLat})) *
@@ -233,10 +335,10 @@ export async function GET(request: NextRequest) {
             LEFT JOIN user_event_status ues ON e.id = ues.event_id AND ues.user_id = ${userId}
             WHERE
               e.eventstartdatetime > ${today} AND
-              ${futureCutoffDate ? Prisma.sql`e.eventstartdatetime <= ${futureCutoffDate} AND` : Prisma.sql``}
               e.geolocation IS NOT NULL AND
               (ues.archived IS NULL OR ues.archived = false) AND
               (ues.saved IS NULL OR ues.saved = false) AND
+              ${filterCondition} AND
               ${existingIds.length > 0 ? Prisma.sql`e.id NOT IN (${Prisma.join(existingIds)})` : Prisma.sql`TRUE`}
           )
           SELECT
@@ -283,7 +385,7 @@ export async function GET(request: NextRequest) {
     }));
 
     const endTime = Date.now();
-    console.log(`Batch events request completed in ${endTime - startTime}ms`);
+    console.log(`Batch events request completed in ${endTime - startTime}ms with filter: ${filter}`);
 
     return NextResponse.json(formattedEvents);
   } catch (error) {

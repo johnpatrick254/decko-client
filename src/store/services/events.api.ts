@@ -1,7 +1,8 @@
 
 import { api } from "../api";
 
-type Category = "Corporate" | "Sports" | "Music" | "Arts & Entertainment" | "Food & Drink"| "Festival" | "Family" | "Other"
+export type Category = "Corporate" | "Sports" | "Music" | "Arts & Entertainment" | "Food & Drink"| "Festival" | "Family" | "Other"
+export type FILTERS = "All" | "This Weekend" | "Next Week"
 export type Event = {
   id: number;
   eventname: string;
@@ -57,16 +58,16 @@ export const DEFAULT_LOCATIONS: Record<string, LocationData> = {
 export type getBatchEventsResponse = Event[];
 export const eventApi = api.enhanceEndpoints({ addTagTypes: ['EVENTS'] }).injectEndpoints({
   endpoints: (builder) => ({
-    getUnreadEventCount: builder.query<{ count: number }, { location: SEARCH_LOCATIONS, maxDaysOld?: number }>({
-      query: ({ location, maxDaysOld }) => {
+    getUnreadEventCount: builder.query<{ count: number }, { location: SEARCH_LOCATIONS, filter?: FILTERS | Category }>({
+      query: ({ location, filter }) => {
         // Handle both string and LocationData
         const locationParam = typeof location === 'string'
           ? location
           : `${location.coordinates[0]},${location.coordinates[1]}`;
 
         let url = `/events/unread-count?location=${locationParam}`;
-        if (maxDaysOld !== undefined) {
-          url += `&maxDaysOld=${maxDaysOld}`;
+        if (filter !== undefined) {
+          url += `&filter=${filter}`;
         }
 
         return url;
@@ -129,20 +130,20 @@ export const eventApi = api.enhanceEndpoints({ addTagTypes: ['EVENTS'] }).inject
       query: ({ id }) => `/event/${id}`,
     }),
 
-    getBatchEventsWithFilter: builder.query<Event[], { limit: number, location: SEARCH_LOCATIONS, maxDaysOld?: number }>({
-      query: ({ limit, location, maxDaysOld }) => {
+    getBatchEventsWithFilter: builder.query<Event[], { limit: number, location: SEARCH_LOCATIONS, filter?: FILTERS | Category }>({
+      query: ({ limit, location, filter }) => {
         // Handle both string and LocationData
         const locationParam = typeof location === 'string'
           ? location
           : location.coordinates.join(',');
 
-        const params: { limit: number, location: string, maxDaysOld?: number } = {
+        const params: { limit: number, location: string, filter?: FILTERS | Category } = {
           limit,
           location: locationParam
         };
 
-        if (maxDaysOld !== undefined) {
-          params.maxDaysOld = maxDaysOld;
+        if (filter !== undefined) {
+          params.filter = filter;
         }
 
         return {
@@ -152,17 +153,17 @@ export const eventApi = api.enhanceEndpoints({ addTagTypes: ['EVENTS'] }).inject
       }
     }),
 
-    getRandomEventWithFilter: builder.query<Event, { location: SEARCH_LOCATIONS, maxDaysOld?: number }>({
-      query: ({ location, maxDaysOld }) => {
+    getRandomEventWithFilter: builder.query<Event, { location: SEARCH_LOCATIONS, filter?: FILTERS | Category }>({
+      query: ({ location, filter }) => {
         // Handle both string and LocationData
         const locationParam = typeof location === 'string'
           ? location
           : location.coordinates.join(',');
 
-        const params: { location: string, maxDaysOld?: number } = { location: locationParam };
+        const params: { location: string, filter?: FILTERS | Category } = { location: locationParam };
 
-        if (maxDaysOld !== undefined) {
-          params.maxDaysOld = maxDaysOld;
+        if (filter !== undefined) {
+          params.filter = filter;
         }
 
         return {

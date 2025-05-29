@@ -2,24 +2,21 @@
 
 import { useState, useEffect, Suspense, ReactElement, JSXElementConstructor, ReactNode, ReactPortal, Key } from "react"
 import { motion, useAnimation, useMotionValue, useTransform, type PanInfo, AnimatePresence } from "framer-motion"
-import { AlertCircle, CalendarDays, CalendarIcon, DollarSign, ExternalLinkIcon, HeartIcon, Link2Icon, Loader2, MapPinIcon, ShareIcon } from "lucide-react"
+import {  CalendarDays, CalendarIcon, DollarSign, ExternalLinkIcon, HeartIcon, Link2Icon, Loader2, MapPinIcon, ShareIcon } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { formatDateParts, formatEventDate, formatTimeWithTimezone, getRelativeTime } from "@/lib/utils"
+import {  formatEventDate } from "@/lib/utils"
 import fallbackImage from "../../../public/Image-folder.jpg"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import EmptyState from "@/components/shared/emptystate"
 import { useEventQueue } from "@/provider/eventsqueue"
 import { useEventsCounterContext } from "@/provider/eventcounterprovider"
 import { useEventFilter } from "@/provider/eventfilterprovider"
-import clsx from "clsx"
 import { useSettings } from "@/provider/settingsprovider"
 import { usePostHog } from "posthog-js/react"
 import { getUserId } from "@/lib/getuserid"
-import Image from "next/image"
 import Link from "next/link"
-import { type Event, useAttendEventMutation, useRegisterEventOpenMutation } from "@/store/services/events.api"
+import { Category, type Event, FILTERS, useAttendEventMutation, useRegisterEventOpenMutation } from "@/store/services/events.api"
 import { useTutorial } from "@/provider/tutorialprovider"
-import { TutorialCardManager } from "@/components/tutorial/TutorialCardManager"
 import ShareButton from "../header/share"
 import { Badge } from "../ui/badge"
 import { Button } from "../ui/button"
@@ -27,7 +24,7 @@ import GoogleMap from "./geomap"
 import { calculateDistance } from "@/lib/geolocation"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 
-export function EventCards() {
+export function EventCards({ filter }: { filter: FILTERS | Category }) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
@@ -44,7 +41,7 @@ export function EventCards() {
     const isMobile = useIsMobile()
     const { saveAndUpdateCount, archiveAndUpdateCount } =
         useEventsCounterContext();
-    const { showSwipeIcons, textSize } = useSettings();
+    const { showSwipeIcons } = useSettings();
     const { searchLocation } = useEventFilter();
     const [eventFromId, setEventFromId] = useState<null | Event[]>(null);
     const [isTopTrayVisible, setIsTopTrayVisible] = useState(false);
@@ -83,7 +80,7 @@ export function EventCards() {
                     }
                 }
             }
-            await fetchBatch({ reset: true, location: null });
+            await fetchBatch({ reset: true, location: searchLocation,filter });
             preloadNextFiveImages();
         };
         initialLoad();
@@ -105,7 +102,7 @@ export function EventCards() {
 
     // Function to refresh news items
     const handleRefresh = () => {
-        resetQueue(searchLocation)
+        resetQueue(searchLocation,filter)
     };
 
     // Add keyboard event listeners
@@ -439,7 +436,7 @@ export function EventCards() {
             })
             .then(() => {
                 // Use nextEvent function to advance in the queue
-                nextEvent().then(() => {
+                nextEvent(filter).then(() => {
                     // Reset position for the new card
                     cardX.set(0)
                     cardControls.set({ x: 0 })
@@ -890,14 +887,14 @@ export function EventCards() {
     )
 }
 
-export const EventPage = () => {
+export const EventPage = ({filter}:{filter:FILTERS | Category}) => {
     return (
         <Suspense fallback={(
             <div className="flex items-center justify-center h-96">
                 <div className="animate-pulse">Loading...</div>
             </div>
         )}>
-            <EventCards />
+            <EventCards filter={filter} />
         </Suspense>
     );
 };

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import  Link  from "next/link";
 import { cn } from "@/lib/utils";
 
 export interface EventDeckProps {
@@ -93,7 +93,7 @@ export default function EventDeck({
   );
   
   return (
-    <Link to={`/deck/${id}`} className="block">
+    <Link href={`/deck/${id}`} className="block">
       {deckContent}
     </Link>
   )

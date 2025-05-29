@@ -146,3 +146,100 @@ export async function updateInteractionsCount(eventId: number, actionType: 'SAVE
     // Log error but don't fail the operation
   }
 }
+
+export type Category = "Corporate" | "Sports" | "Music" | "Arts & Entertainment" | "Food & Drink" | "Festival" | "Family" | "Other"
+export type FILTERS = "All" | "This Weekend" | "Next Week"
+
+export type Event = {
+  id: number;
+  eventname: string;
+  eventvenuename: string;
+  eventdescription: string;
+  eventstartdatetime: string;
+  city: string;
+  state: string;
+  imageUrl: string;
+  geolocation: string[];
+  imagedata: { selectedImg: string, alts: { choice: number, imgUrl: string }[] };
+  metadata: { eventTags: { Categories: Category[] }, url: string, eventLongDescription: string, google_calendar_url: string, soldOut: boolean, address: string, price: string | null };
+  createdat: string;
+  attending?: boolean;
+  saved?: boolean;
+}
+
+
+
+
+// Alternative version for different SQL databases:
+export function generateEventFilterSQL(filter: FILTERS | Category): string {
+  const getCurrentDate = () => new Date().toISOString().split('T')[0];
+
+  const getCurrentWeekendDates = () => {
+    const now = new Date();
+    const currentDay = now.getDay();
+
+    const daysUntilSaturday = currentDay === 0 ? 6 : 6 - currentDay;
+
+    const saturday = new Date(now);
+    saturday.setDate(now.getDate() + daysUntilSaturday);
+    saturday.setHours(0, 0, 0, 0);
+
+    const sunday = new Date(saturday);
+    sunday.setDate(saturday.getDate() + 1);
+    sunday.setHours(23, 59, 59, 999);
+
+    return {
+      start: saturday.toISOString(),
+      end: sunday.toISOString()
+    };
+  };
+
+  const getNextWeekDates = () => {
+    const now = new Date();
+    const currentDay = now.getDay();
+
+    const daysUntilNextMonday = currentDay === 0 ? 1 : 8 - currentDay;
+
+    const nextMonday = new Date(now);
+    nextMonday.setDate(now.getDate() + daysUntilNextMonday);
+    nextMonday.setHours(0, 0, 0, 0);
+
+    const nextSunday = new Date(nextMonday);
+    nextSunday.setDate(nextMonday.getDate() + 6);
+    nextSunday.setHours(23, 59, 59, 999);
+
+    return {
+      start: nextMonday.toISOString(),
+      end: nextSunday.toISOString()
+    };
+  };
+
+  switch (filter) {
+    case "All":
+      return "1=1";
+
+    case "This Weekend": {
+      const weekend = getCurrentWeekendDates();
+      return `eventstartdatetime >= '${weekend.start}' AND eventstartdatetime <= '${weekend.end}'`;
+    }
+
+    case "Next Week": {
+      const nextWeek = getNextWeekDates();
+      return `eventstartdatetime >= '${nextWeek.start}' AND eventstartdatetime <= '${nextWeek.end}'`;
+    }
+
+    // PostgreSQL JSON query syntax
+    case "Corporate":
+    case "Sports":
+    case "Music":
+    case "Arts & Entertainment":
+    case "Food & Drink":
+    case "Festival":
+    case "Family":
+    case "Other":
+      return `metadata->'eventTags'->'Categories' ? '${filter}'`;
+
+    default:
+      return "1=1";
+  }
+}
