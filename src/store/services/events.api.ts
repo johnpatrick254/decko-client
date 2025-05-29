@@ -224,47 +224,43 @@ export const eventApi = api.enhanceEndpoints({ addTagTypes: ['EVENTS'] }).inject
       providesTags: ['EVENTS']
     }),
 
-    getSavedEvents: builder.query<GetEventsResponse & { timeframe: { start: string, end: string, weekOffset: number }, filter: string }, { page: string, weekOffset?: number, filter?: string, pageSize?: number, timeframe?: string }>({
-      query: ({ page, weekOffset = 0, filter = 'all', pageSize = 20, timeframe = 'this-week' }) => {
-        // Calculate the appropriate weekOffset based on timeframe if provided
-        let calculatedWeekOffset = weekOffset;
-        let calculatedPageSize = pageSize;
+    getSavedEvents: builder.query<GetEventsResponse,{
+      page: string,
+      pageSize?: string,
+      categories?: Category[],
+      filter?: Category | Category[]
+    }>({
+      query: ({ page, pageSize = '20', categories, filter }) => {
+        const params: Record<string, string | string[]> = {
+          page,
+          pageSize
+        };
 
-        if (timeframe) {
-          switch (timeframe) {
-            case 'today':
-              calculatedWeekOffset = 0;
-              calculatedPageSize = 10;
-              break;
-            case 'this-week':
-              calculatedWeekOffset = 0;
-              calculatedPageSize = 20;
-              break;
-            case 'next-week':
-              calculatedWeekOffset = 1;
-              calculatedPageSize = 20;
-              break;
-            case 'this-month':
-              // For month view, the weekOffset is handled in the component
-              // by making multiple queries with different offsets
-              calculatedPageSize = 20;
-              break;
-            default:
-              calculatedWeekOffset = 0;
-              calculatedPageSize = 20;
+        const allCategories: Category[] = [];
+
+        if (categories && categories.length > 0) {
+          allCategories.push(...categories);
+        }
+
+        if (filter) {
+          if (Array.isArray(filter)) {
+            allCategories.push(...filter);
+          } else {
+            allCategories.push(filter);
           }
         }
 
-        return ({
+        const uniqueCategories = [...new Set(allCategories)];
+
+        if (uniqueCategories.length > 0) {
+          params.category = uniqueCategories;
+        }
+
+
+        return {
           url: 'events/saved',
-          params: {
-            page,
-            weekOffset: calculatedWeekOffset,
-            filter,
-            pageSize: calculatedPageSize,
-            timeframe
-          },
-        });
+          params,
+        };
       },
       providesTags: ['EVENTS']
     }),

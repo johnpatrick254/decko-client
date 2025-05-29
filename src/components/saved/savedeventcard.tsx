@@ -373,7 +373,7 @@ export default function SavedEventCard({
                         )}
 
                         {/* Regular attending button when not dragging */}
-                        {!isDragging && (
+                        
                             <div className="right-3 z-[5]">
                                 <TooltipProvider>
                                     <Tooltip>
@@ -413,7 +413,7 @@ export default function SavedEventCard({
                                     </Tooltip>
                                 </TooltipProvider>
                             </div>
-                        )}
+                        
                     </div>
                 </div>
             </div>

@@ -1,6 +1,6 @@
 'use client'
 import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
-import { useGetHistoryEventsQuery } from '@/store/services/events.api';
+import { useGetHistoryEventsQuery, useGetSavedEventsQuery } from '@/store/services/events.api';
 import { Event } from '@/store/services/events.api';
 import { Building2, Ellipsis, MusicIcon, RefreshCw, SparklesIcon, TagIcon, TheaterIcon, TrophyIcon, UsersIcon, UtensilsIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -52,7 +52,7 @@ export const SavePageContent = () => {
     isFetching,
     isError,
     error
-  } = useGetHistoryEventsQuery(queryParams);
+  } = useGetSavedEventsQuery(queryParams);
 
   const filters = [
     {
@@ -286,7 +286,7 @@ export const SavePageContent = () => {
         ) : (
           <>
             {/* Show skeleton while loading first page */}
-              {(isLoading || isFetching) && page === 1 ? (
+              {isLoading && page === 1 ? (
               <div className="space-y-4">
                 {Array(5).fill(0).map((_, index) => (
                   <SavedEventCardSkeleton key={`skeleton-${index}`} />

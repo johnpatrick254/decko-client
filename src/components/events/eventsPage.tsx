@@ -398,14 +398,11 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
     };
 
     const handleSwipe = (direction: "left" | "right") => {
-        // Skip if there are no news items
         if (!eventFromId && !events) return;
         if (eventFromId) {
             setEventFromId(null)
         }
-        // Only allow swipes when in neutral position
         if (isArticleVisible || isTopTrayVisible) return;
-        // Set swipe direction and show icon
         setSwipeDirection(direction)
         showSwipeIcons && setShowSwipeIcon(true)
         const xPosition = direction === "left" ? -500 : 500;
@@ -436,17 +433,13 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
                 transition: { duration: 0.25 },
             })
             .then(() => {
-                // Use nextEvent function to advance in the queue
                 nextEvent(filter).then(() => {
-                    // Reset position for the new card
                     cardX.set(0)
                     cardControls.set({ x: 0 })
 
-                    // Reset swipe direction and hide icon
                     setSwipeDirection(null)
                     showSwipeIcons && setShowSwipeIcon(false)
 
-                    // Preload next images for smoother experience
                     preloadNextFiveImages()
                 })
             })
@@ -458,14 +451,13 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
             return eventFromId.slice(0, 3)
         }
         if (!events || events.length === 0) return []
-        // Use the first card from the queue as current, then show up to 2 more
         return events.slice(0, 3)
     }
 
     const placeHolder = 'https://placehold.co/600x400/png?text=Image+Processing+Failed';
     const imageUrl = activeEvent?.imagedata.alts[1]?.imgUrl;
-    let distanceInMiles = null
-    const userCoords = localStorage.getItem('user_coordinates')
+    let distanceInMiles = null;
+    const userCoords = localStorage.getItem('user_coordinates');
     if (userCoords && activeEvent && activeEvent.geolocation?.length) {
         try {
             const parsedCoordinates = (JSON.parse(userCoords) as string[]);
@@ -474,7 +466,7 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
                 +parsedCoordinates[1],
                 +activeEvent.geolocation[0],
                 +activeEvent.geolocation[1]
-            )
+            );
             distanceInMiles = distance;
         } catch (error) {
             console.error('Error parsing coordinates:', error);
@@ -535,7 +527,7 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
                             {visibleCards().map((eventItem, index) => (
                                 <motion.div
                                     key={`${eventItem.id}-${index}`}
-                                    className="absolute rounded-xl overflow-hidden shadow-md standard-card mx-auto ring-1 ring-card-foreground/10 h-[84dvh] w-[90%] md:max-w-[90%] lg:max-w-[500px] event-card z-50"
+                                    className="absolute rounded-xl overflow-hidden shadow-md standard-card mx-auto ring-1 ring-card-foreground/10 h-[84dvh] w-[90%] md:max-w-[90%] lg:max-w-[450px] event-card z-50"
                                     data-event={index === 0 ? JSON.stringify(eventItem) : ''}
                                     // Only apply animations to the top card (index 0)
                                     animate={index === 0 ? cardControls : undefined}
@@ -633,7 +625,7 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
                                     style={{
                                         opacity: swipeIconOpacity,
                                         x: swipeDirection === "left" ? "-30%" : "50%",
-                                        left: swipeDirection === "left" ? "10%" : "75%",
+                                        left: swipeDirection === "left" ? "10%" : "70%",
                                     }}
                                     initial={{ opacity: 0, scale: 0.5 }}
                                     animate={{ opacity: 1, scale: 1 }}
