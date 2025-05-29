@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect, Suspense, ReactElement, JSXElementConstructor, ReactNode, ReactPortal, Key } from "react"
-import { motion, useAnimation, useMotionValue, useTransform, type PanInfo, AnimatePresence } from "framer-motion"
-import {  CalendarDays, CalendarIcon, DollarSign, ExternalLinkIcon, HeartIcon, Link2Icon, Loader2, MapPinIcon, ShareIcon } from "lucide-react"
+import { motion, useAnimation, useMotionValue, useTransform, type PanInfo } from "framer-motion"
+import {  CalendarDays, CalendarIcon, HeartIcon, Link2Icon, Loader2, MapPinIcon } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {  formatEventDate } from "@/lib/utils"
 import fallbackImage from "../../../public/Image-folder.jpg"
@@ -22,6 +22,7 @@ import { Badge } from "../ui/badge"
 import { Button } from "../ui/button"
 import GoogleMap from "./geomap"
 import { calculateDistance } from "@/lib/geolocation"
+import Image from "next/image"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 
 export function EventCards({ filter }: { filter: FILTERS | Category }) {
@@ -582,7 +583,7 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
                                             <ShareButton title={activeEvent?.eventname ?? "Decko"} url={`${origin}/events/${activeEvent?.id}?id=${activeEvent?.id}`} />
                                         </div>
                                         <div className="absolute h-full-w-full inset-0 bg-gradient-to-t from-black via-black/70 to-primary-black/40 z-10" ></div>
-                                        <img src={imageUrl == placeHolder ? fallbackImage.src : imageUrl} alt={activeEvent?.eventname} className="absolute inset-0 h-full w-full" />
+                                        <Image height={1200} width={780} priority quality={80} src={(!imageUrl || imageUrl == placeHolder) ? fallbackImage : imageUrl} alt={activeEvent?.eventname ?? "Event image"} className="absolute inset-0 h-full w-full" />
                                         <div className="absolute inset-x-0 bottom-0 z-20 p-4  text-white">
                                             <h3 className="text-xl font-bold leading-tight mb-3">
                                                 {activeEvent?.eventname}
