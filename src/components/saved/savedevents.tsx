@@ -319,10 +319,12 @@ export const SavePageContent = () => {
                 return (
                   <SavedEventCard
                     key={event.id}
+                    attending={event.attending}
                     id={event.id}
                     date={event.eventstartdatetime}
                     imageUrl={event.imageUrl}
                     location={event.eventvenuename}
+                    price={event.metadata.price}
                     title={event.eventname}
                     distance={distanceInMiles ? `${distanceInMiles} miles` : null}
                     tags={event.metadata.eventTags.Categories}
