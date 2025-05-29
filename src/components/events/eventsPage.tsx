@@ -485,7 +485,7 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
         <div className="relative font-sans flex justify-center items-center">
 
             {/* iPhone Max width container - all elements will be constrained to this width */}
-            <div className="relative  flex justify-center">
+            <div className="relative flex flex-1 justify-center">
 
                 {/* Main content container */}
                 <motion.div className="relative h-screen w-full flex items-center justify-center" animate={stackControls}>
@@ -528,21 +528,21 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
 
                     {/* Card Stack */}
                     {!isLoading && ((events && events.length > 0) || (eventFromId && eventFromId.length > 0)) && (
-                        <div className="relative w-full h-full flex items-start justify-center pt-[11vh]">
+                        <div className="relative w-full h-full flex items-start justify-center pt-[9vh]">
                             {/* Tutorial Card Manager - handles all tutorial-related rendering */}
                             {/* {showTutorial && <TutorialCardManager fallbackImage={fallbackImage} textSize={textSize} />} */}
                             {/* Render multiple cards in stack */}
                             {visibleCards().map((eventItem, index) => (
                                 <motion.div
                                     key={`${eventItem.id}-${index}`}
-                                    className="absolute rounded-xl overflow-hidden shadow-md standard-card mx-auto ring-1 ring-card-foreground/10 h-[84dvh] event-card z-50"
+                                    className="absolute rounded-xl overflow-hidden shadow-md standard-card mx-auto ring-1 ring-card-foreground/10 h-[84dvh] w-[90%] max-w-98 event-card z-50"
                                     data-event={index === 0 ? JSON.stringify(eventItem) : ''}
                                     // Only apply animations to the top card (index 0)
                                     animate={index === 0 ? cardControls : undefined}
                                     style={{
                                         // Only apply motion values to the top card
                                         x: index === 0 ? cardX : 0,
-                                        y: index === 0 ? cardY : 0, // Add this line to apply cardY to top card only
+                                        y: index === 0 ? cardY : 0, 
                                         rotate: index === 0 ? cardRotate : 0,
                                         // Only apply opacity changes to the top card during horizontal swipes
                                         opacity:
@@ -566,7 +566,7 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
                                     onDrag={handleCardDrag}
                                     onDragEnd={index === 0 ? handleCardDragEnd : undefined}
                                 >
-                                    <div className="bg-background relative h-full w-[94vw] flex flex-col">
+                                    <div className="bg-background relative h-full w-full sm:max-w-[94vw] flex flex-col">
                                         <div className="relative w-full flex gap-3 justify-end p-3">
                                             {
                                                 activeEvent?.metadata?.google_calendar_url
@@ -708,7 +708,7 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
                         </div>
                     )}
                 </motion.div>
-                <div className="absolute overflow-auto w-screen max-w-[740px]">
+                <div className="absolute overflow-auto w-full max-w-[740px]">
                     {/* Article Content - Positioned 25% down from the top and 0% from bottom */}
                     {isArticleVisible && activeEvent && (
                         <div className="mx-auto w-full h-[140vh] pb-[42vh] z-5">
@@ -873,7 +873,7 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
                 {
                     !isMobile && events && events.length > 0 && (
                         <motion.div
-                            className="absolute bottom-[0.8dvh] right-[2dvh] bg-white/80 backdrop-blur-sm rounded-lg p-2 text-md  text-gray-600"
+                            className="absolute bottom-[0.8dvh] right-[2dvh] bg-white/80 backdrop-blur-sm rounded-lg p-2 text-xs  text-gray-600"
                             animate={{
                                 opacity: isArticleVisible || isTopTrayVisible ? 0 : 1,
                             }}
