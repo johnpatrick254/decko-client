@@ -535,7 +535,7 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
                             {visibleCards().map((eventItem, index) => (
                                 <motion.div
                                     key={`${eventItem.id}-${index}`}
-                                    className="absolute rounded-xl overflow-hidden shadow-md standard-card mx-auto ring-1 ring-card-foreground/10 h-[84dvh] w-[90%] max-w-98 event-card z-50"
+                                    className="absolute rounded-xl overflow-hidden shadow-md standard-card mx-auto ring-1 ring-card-foreground/10 h-[84dvh] w-[90%] md:max-w-[90%] lg:max-w-[500px] event-card z-50"
                                     data-event={index === 0 ? JSON.stringify(eventItem) : ''}
                                     // Only apply animations to the top card (index 0)
                                     animate={index === 0 ? cardControls : undefined}
@@ -633,7 +633,7 @@ export function EventCards({ filter }: { filter: FILTERS | Category }) {
                                     style={{
                                         opacity: swipeIconOpacity,
                                         x: swipeDirection === "left" ? "-30%" : "50%",
-                                        left: swipeDirection === "left" ? "10%" : "65%",
+                                        left: swipeDirection === "left" ? "10%" : "75%",
                                     }}
                                     initial={{ opacity: 0, scale: 0.5 }}
                                     animate={{ opacity: 1, scale: 1 }}

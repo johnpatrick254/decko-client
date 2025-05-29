@@ -25,16 +25,16 @@ export function NavMain({
   }[]
 }) {
 
-  const { toggleSidebar,open } = useSidebar();
-  const {setFilter} = useEventQueue();
+  const { toggleSidebar, open } = useSidebar();
+  const { setFilter } = useEventQueue();
   const isMobile = useIsMobile()
   const handleNavMenuClick = (item: {
     title: Location,
     coords: number[]
   }) => {
     setFilter({
-      coordinates:item.coords,
-      displayName:item.title
+      coordinates: item.coords,
+      displayName: item.title
     });
     if (isMobile) {
       toggleSidebar();
@@ -47,13 +47,12 @@ export function NavMain({
       <SidebarMenu className="pl-1.5 pt-2" key={'dash-sidebar'}>
         {items.map((item) => (
           <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton  onClick={()=>handleNavMenuClick(item)} tooltip={item.title} className={cn("flex items-center gap-4 rounded px-4 py-2 font-medium transition-all",
-                !open && "relative right-2 hidden"
-              )}>
-                <span >{item.title}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-
+            <SidebarMenuButton onClick={() => handleNavMenuClick(item)} tooltip={item.title} className={cn("flex items-center gap-4 rounded px-4 py-2 font-medium transition-all",
+              (!open ) && "relative right-2 hidden"
+            )}>
+              <span >{item.title}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         ))}
       </SidebarMenu>
     </SidebarGroup>
