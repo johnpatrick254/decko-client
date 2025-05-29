@@ -45,6 +45,7 @@ export default function SavedEventCard({
     const [dragX, setDragX] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
+    const [isPerformingAction, setIsPerformingAction] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
     const linkRef = useRef<HTMLAnchorElement>(null);
 
@@ -55,9 +56,10 @@ export default function SavedEventCard({
         e.stopPropagation();
         e.preventDefault();
 
-        if (isUpdatingAttend) return;
+        if (isUpdatingAttend || isPerformingAction) return;
 
         try {
+            setIsPerformingAction(true);
             posthog.identify(getUserId());
 
             if (attending) {
@@ -72,11 +74,16 @@ export default function SavedEventCard({
             await attendEvent({ id: id });
         } catch (error) {
             console.error('Failed to update attending status:', error);
+        } finally {
+            setIsPerformingAction(false);
         }
     };
 
     const handleUnsave = async () => {
+        if (isPerformingAction) return;
+
         try {
+            setIsPerformingAction(true);
             posthog.identify(getUserId());
             if (PROD) {
                 posthog.capture("event_unsaved", {
@@ -87,12 +94,16 @@ export default function SavedEventCard({
             await unsaveEvent({ id });
         } catch (error) {
             console.error('Failed to unsave event:', error);
+        } finally {
+            // Don't reset immediately for unsave since the component might unmount
+            setTimeout(() => setIsPerformingAction(false), 500);
         }
     };
 
     const handleMarkAttending = async () => {
-        if (!attending) {
+        if (!attending && !isPerformingAction) {
             try {
+                setIsPerformingAction(true);
                 posthog.identify(getUserId());
                 if (PROD) {
                     posthog.capture("event_attended_swipe", {
@@ -103,18 +114,21 @@ export default function SavedEventCard({
                 await attendEvent({ id });
             } catch (error) {
                 console.error('Failed to mark as attending:', error);
+            } finally {
+                setIsPerformingAction(false);
             }
         }
     };
 
     // Touch events
     const handleTouchStart = (e: React.TouchEvent) => {
+        if (isPerformingAction) return;
         setStartX(e.touches[0].clientX);
         setIsDragging(true);
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
-        if (!isDragging) return;
+        if (!isDragging || isPerformingAction) return;
 
         const currentX = e.touches[0].clientX;
         const deltaX = currentX - startX;
@@ -125,7 +139,7 @@ export default function SavedEventCard({
     };
 
     const handleTouchEnd = () => {
-        if (!isDragging) return;
+        if (!isDragging || isPerformingAction) return;
 
         setIsDragging(false);
 
@@ -137,21 +151,22 @@ export default function SavedEventCard({
                 // Right swipe - mark as attending
                 handleMarkAttending();
             }
+        } else {
+            // Reset position if threshold not met
+            setDragX(0);
         }
-
-        // Reset position
-        setDragX(0);
     };
 
     // Mouse events for desktop
     const handleMouseDown = (e: React.MouseEvent) => {
+        if (isPerformingAction) return;
         setStartX(e.clientX);
         setIsDragging(true);
         e.preventDefault();
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isDragging) return;
+        if (!isDragging || isPerformingAction) return;
 
         const currentX = e.clientX;
         const deltaX = currentX - startX;
@@ -161,7 +176,7 @@ export default function SavedEventCard({
     };
 
     const handleMouseUp = () => {
-        if (!isDragging) return;
+        if (!isDragging || isPerformingAction) return;
 
         setIsDragging(false);
 
@@ -171,15 +186,15 @@ export default function SavedEventCard({
             } else {
                 handleMarkAttending();
             }
+        } else {
+            setDragX(0);
         }
-
-        setDragX(0);
     };
 
     // Global mouse events
     useEffect(() => {
         const handleGlobalMouseMove = (e: MouseEvent) => {
-            if (!isDragging) return;
+            if (!isDragging || isPerformingAction) return;
 
             const currentX = e.clientX;
             const deltaX = currentX - startX;
@@ -189,7 +204,7 @@ export default function SavedEventCard({
         };
 
         const handleGlobalMouseUp = () => {
-            if (!isDragging) return;
+            if (!isDragging || isPerformingAction) return;
 
             setIsDragging(false);
 
@@ -199,9 +214,9 @@ export default function SavedEventCard({
                 } else {
                     handleMarkAttending();
                 }
+            } else {
+                setDragX(0);
             }
-
-            setDragX(0);
         };
 
         if (isDragging) {
@@ -213,15 +228,28 @@ export default function SavedEventCard({
             document.removeEventListener('mousemove', handleGlobalMouseMove);
             document.removeEventListener('mouseup', handleGlobalMouseUp);
         };
-    }, [isDragging, startX, dragX]);
+    }, [isDragging, startX, dragX, isPerformingAction]);
+
+    // Reset drag position after action completes
+    useEffect(() => {
+        if (!isUpdatingAttend && !isUnsaving && !isPerformingAction) {
+            const timer = setTimeout(() => {
+                setDragX(0);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [isUpdatingAttend, isUnsaving, isPerformingAction]);
 
     const handleCardClick = (e: React.MouseEvent) => {
-        // Prevent navigation if we just finished dragging
-        if (Math.abs(dragX) > 5) {
+        // Prevent navigation if we just finished dragging or performing an action
+        if (Math.abs(dragX) > 5 || isPerformingAction) {
             e.preventDefault();
             e.stopPropagation();
         }
     };
+
+    const showLeftAction = dragX < -20;
+    const showRightAction = dragX > 20 && !attending;
 
     const cardContent = (
         <div className="relative w-full overflow-hidden">
@@ -230,26 +258,38 @@ export default function SavedEventCard({
                 {/* Left side - Unsave (Red) */}
                 <div
                     className={cn(
-                        "flex items-center justify-start pl-4 bg-red-500 w-1/2 transition-opacity duration-200",
-                        dragX < -20 ? "opacity-100" : "opacity-0"
+                        "flex items-center justify-start pl-4 bg-red-500 w-1/2 transition-all duration-200",
+                        showLeftAction ? "opacity-100" : "opacity-0"
                     )}
                 >
                     <div className="flex items-center gap-2 text-white">
-                        <Trash2 className="h-6 w-6" />
-                        <span className="font-medium">Unsave</span>
+                        {isUnsaving ? (
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                            <Trash2 className="h-6 w-6" />
+                        )}
+                        <span className="font-medium">
+                            {isUnsaving ? "Unsaving..." : "Unsave"}
+                        </span>
                     </div>
                 </div>
 
                 {/* Right side - Mark Attending (Green) */}
                 <div
                     className={cn(
-                        "flex items-center justify-end pr-4 bg-green-500 w-1/2 transition-opacity duration-200",
-                        dragX > 20 && !attending ? "opacity-100" : "opacity-0"
+                        "flex items-center justify-end pr-4 bg-green-500 w-1/2 transition-all duration-200",
+                        showRightAction ? "opacity-100" : "opacity-0"
                     )}
                 >
                     <div className="flex items-center gap-2 text-white">
-                        <span className="font-medium">Attending</span>
-                        <Check className="h-6 w-6" />
+                        <span className="font-medium">
+                            {isUpdatingAttend ? "Updating..." : "Attending"}
+                        </span>
+                        {isUpdatingAttend ? (
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                            <Check className="h-6 w-6" />
+                        )}
                     </div>
                 </div>
             </div>
@@ -258,8 +298,10 @@ export default function SavedEventCard({
             <div
                 ref={cardRef}
                 className={cn(
-                    "relative overflow-hidden rounded-xl shadow-lg transition-transform h-[200px] w-full bg-amber-800 cursor-grab active:cursor-grabbing",
-                    isDragging ? "transition-none" : "transition-transform duration-300 ease-out"
+                    "relative overflow-hidden rounded-xl shadow-lg h-[200px] w-full bg-amber-800",
+                    isDragging || isPerformingAction ? "cursor-grabbing" : "cursor-grab",
+                    // Only apply transition when not dragging and not performing action
+                    !isDragging && !isPerformingAction ? "transition-transform duration-300 ease-out" : "transition-none"
                 )}
                 style={{
                     transform: `translateX(${dragX}px)`,
@@ -306,13 +348,25 @@ export default function SavedEventCard({
                             <div className="flex items-center">
                                 {dragX < 0 ? (
                                     <div className="flex items-center gap-2 bg-red-500/90 px-3 py-1.5 rounded-lg text-white">
-                                        <Trash2 className="h-4 w-4" />
-                                        <span className="text-sm font-medium">Unsave</span>
+                                        {isUnsaving ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Trash2 className="h-4 w-4" />
+                                        )}
+                                        <span className="text-sm font-medium">
+                                            {isUnsaving ? "Unsaving..." : "Unsave"}
+                                        </span>
                                     </div>
                                 ) : dragX > 0 && !attending ? (
                                     <div className="flex items-center gap-2 bg-green-500/90 px-3 py-1.5 rounded-lg text-white">
-                                        <Check className="h-4 w-4" />
-                                        <span className="text-sm font-medium">Attending</span>
+                                        {isUpdatingAttend ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Check className="h-4 w-4" />
+                                        )}
+                                        <span className="text-sm font-medium">
+                                            {isUpdatingAttend ? "Updating..." : "Attending"}
+                                        </span>
                                     </div>
                                 ) : null}
                             </div>
@@ -324,7 +378,7 @@ export default function SavedEventCard({
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            {(isUpdatingAttend || isUnsaving) ? (
+                                            {(isUpdatingAttend || isUnsaving || isPerformingAction) ? (
                                                 <div className="text-nowrap bg-primary/80 rounded-sm px-2 py-1.5 shadow-md z-[10] cursor-wait text-md font-medium text-primary-foreground flex items-center gap-1">
                                                     <Loader2 className="h-3 w-3 text-primary-foreground animate-spin" />
                                                     {isUnsaving ? "Unsaving..." : "Updating..."}
@@ -332,7 +386,7 @@ export default function SavedEventCard({
                                             ) : attending ? (
                                                 <button
                                                     onClick={handleAttendingToggle}
-                                                    disabled={isUpdatingAttend || isUnsaving}
+                                                    disabled={isUpdatingAttend || isUnsaving || isPerformingAction}
                                                     className="text-nowrap bg-primary rounded-sm px-2 py-1.5 shadow-md z-[10] cursor-pointer text-md font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus:ring-2 focus:ring-primary/30 focus:outline-none hover:scale-105"
                                                     aria-label="Mark as not attending"
                                                 >
@@ -341,7 +395,7 @@ export default function SavedEventCard({
                                             ) : (
                                                 <button
                                                     onClick={handleAttendingToggle}
-                                                    disabled={isUpdatingAttend || isUnsaving}
+                                                    disabled={isUpdatingAttend || isUnsaving || isPerformingAction}
                                                     className="text-nowrap bg-muted rounded-sm px-2 py-1.5 shadow-md z-[10] cursor-pointer text-md font-medium border border-border hover:bg-muted/80 transition-colors focus:ring-2 focus:ring-muted/50 focus:outline-none hover:scale-105"
                                                     aria-label="Mark as attending"
                                                 >
@@ -350,7 +404,7 @@ export default function SavedEventCard({
                                             )}
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            {(isUpdatingAttend || isUnsaving) ? (
+                                            {(isUpdatingAttend || isUnsaving || isPerformingAction) ? (
                                                 <p>{isUnsaving ? "Removing from saved events..." : "Updating attendance status..."}</p>
                                             ) : (
                                                 <p>Click to {attending ? 'remove' : 'add'} yourself as attending</p>

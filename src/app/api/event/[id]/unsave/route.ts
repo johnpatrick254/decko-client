@@ -3,8 +3,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-    const { id: eventId } = params;
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id: eventId } = await params;
 
     try {
         // Get userId from headers (matching your other endpoints)
