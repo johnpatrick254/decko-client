@@ -12,10 +12,10 @@ import logo from "../../../../public/icon.png"
 import Link from "next/link"
 
 export function BrandLogo() {
-    const {toggleSidebar ,open} = useSidebar();
+    const {setOpen ,open} = useSidebar();
     const handleClick =()=>{
         if(open){
-            toggleSidebar();
+            setOpen(false);
         }
     }
 
