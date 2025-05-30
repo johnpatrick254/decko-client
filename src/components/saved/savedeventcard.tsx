@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 import { useAttendEventMutation, useUnsaveEventMutation } from "@/store/services/events.api";
 import posthog from "posthog-js";
 import { getUserId } from "@/lib/getuserid";
-import { Loader2, Trash2, Check } from "lucide-react";
+import { Loader2, Trash2, Check, CalendarArrowDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 const PROD = process.env.NODE_ENV === "production" || false;
@@ -95,7 +95,6 @@ export default function SavedEventCard({
         } catch (error) {
             console.error('Failed to unsave event:', error);
         } finally {
-            // Don't reset immediately for unsave since the component might unmount
             setTimeout(() => setIsPerformingAction(false), 500);
         }
     };
@@ -117,10 +116,11 @@ export default function SavedEventCard({
             } finally {
                 setIsPerformingAction(false);
             }
+        } else {
+            setDragX(0);
         }
     };
 
-    // Touch events
     const handleTouchStart = (e: React.TouchEvent) => {
         if (isPerformingAction) return;
         setStartX(e.touches[0].clientX);
@@ -133,7 +133,6 @@ export default function SavedEventCard({
         const currentX = e.touches[0].clientX;
         const deltaX = currentX - startX;
 
-        // Limit drag distance
         const limitedDeltaX = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, deltaX));
         setDragX(limitedDeltaX);
     };
@@ -144,51 +143,23 @@ export default function SavedEventCard({
         setIsDragging(false);
 
         if (Math.abs(dragX) > SWIPE_THRESHOLD) {
-            if (dragX < 0) {
-                // Left swipe - unsave
+            // Fixed: Left-to-right swipe (positive dragX) = unsave
+            // Right-to-left swipe (negative dragX) = mark attending
+            if (dragX > 0) {
                 handleUnsave();
             } else {
-                // Right swipe - mark as attending
                 handleMarkAttending();
             }
         } else {
-            // Reset position if threshold not met
             setDragX(0);
         }
     };
 
-    // Mouse events for desktop
     const handleMouseDown = (e: React.MouseEvent) => {
         if (isPerformingAction) return;
         setStartX(e.clientX);
         setIsDragging(true);
         e.preventDefault();
-    };
-
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isDragging || isPerformingAction) return;
-
-        const currentX = e.clientX;
-        const deltaX = currentX - startX;
-
-        const limitedDeltaX = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, deltaX));
-        setDragX(limitedDeltaX);
-    };
-
-    const handleMouseUp = () => {
-        if (!isDragging || isPerformingAction) return;
-
-        setIsDragging(false);
-
-        if (Math.abs(dragX) > SWIPE_THRESHOLD) {
-            if (dragX < 0) {
-                handleUnsave();
-            } else {
-                handleMarkAttending();
-            }
-        } else {
-            setDragX(0);
-        }
     };
 
     // Global mouse events
@@ -209,7 +180,9 @@ export default function SavedEventCard({
             setIsDragging(false);
 
             if (Math.abs(dragX) > SWIPE_THRESHOLD) {
-                if (dragX < 0) {
+                // Fixed: Left-to-right swipe (positive dragX) = unsave
+                // Right-to-left swipe (negative dragX) = mark attending  
+                if (dragX > 0) {
                     handleUnsave();
                 } else {
                     handleMarkAttending();
@@ -248,48 +221,30 @@ export default function SavedEventCard({
         }
     };
 
-    const showLeftAction = dragX < -20;
-    const showRightAction = dragX > 20 && !attending;
 
     const cardContent = (
         <div className="relative w-full overflow-hidden">
             {/* Background action indicators */}
             <div className="absolute inset-0 flex">
-                {/* Left side - Unsave (Red) */}
+                {/* Left side - Unsave (Red) - shows when swiping left-to-right */}
                 <div
                     className={cn(
-                        "flex items-center justify-start pl-4 bg-red-500 w-1/2 transition-all duration-200",
-                        showLeftAction ? "opacity-100" : "opacity-0"
+                        "flex items-center rounded-xl justify-start pl-6 bg-gradient-to-l from-red-500/40 via-red-500/70 to-red-500 w-1/2 transition-all duration-200",
                     )}
                 >
                     <div className="flex items-center gap-2 text-white">
-                        {isUnsaving ? (
-                            <Loader2 className="h-6 w-6 animate-spin" />
-                        ) : (
-                            <Trash2 className="h-6 w-6" />
-                        )}
-                        <span className="font-medium">
-                            {isUnsaving ? "Unsaving..." : "Unsave"}
-                        </span>
+                        <Trash2 className="h-8 w-8 animate-bounce" />
                     </div>
                 </div>
 
-                {/* Right side - Mark Attending (Green) */}
+                {/* Right side - Mark Attending (Green) - shows when swiping right-to-left */}
                 <div
                     className={cn(
-                        "flex items-center justify-end pr-4 bg-green-500 w-1/2 transition-all duration-200",
-                        showRightAction ? "opacity-100" : "opacity-0"
+                        "flex items-center rounded-xl justify-end pr-6 bg-gradient-to-r from-green-500/40 via-green-500/70 to-green-500 w-1/2 transition-all duration-200",
                     )}
                 >
                     <div className="flex items-center gap-2 text-white">
-                        <span className="font-medium">
-                            {isUpdatingAttend ? "Updating..." : "Attending"}
-                        </span>
-                        {isUpdatingAttend ? (
-                            <Loader2 className="h-6 w-6 animate-spin" />
-                        ) : (
-                            <Check className="h-6 w-6" />
-                        )}
+                        <CalendarArrowDown className="h-8 w-8 animate-bounce" />
                     </div>
                 </div>
             </div>
@@ -343,77 +298,48 @@ export default function SavedEventCard({
                             )}
                         </div>
 
-                        {/* Action Icons when dragging */}
-                        {isDragging && Math.abs(dragX) > 20 && (
-                            <div className="flex items-center">
-                                {dragX < 0 ? (
-                                    <div className="flex items-center gap-2 bg-red-500/90 px-3 py-1.5 rounded-lg text-white">
-                                        {isUnsaving ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Trash2 className="h-4 w-4" />
-                                        )}
-                                        <span className="text-sm font-medium">
-                                            {isUnsaving ? "Unsaving..." : "Unsave"}
-                                        </span>
-                                    </div>
-                                ) : dragX > 0 && !attending ? (
-                                    <div className="flex items-center gap-2 bg-green-500/90 px-3 py-1.5 rounded-lg text-white">
-                                        {isUpdatingAttend ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Check className="h-4 w-4" />
-                                        )}
-                                        <span className="text-sm font-medium">
-                                            {isUpdatingAttend ? "Updating..." : "Attending"}
-                                        </span>
-                                    </div>
-                                ) : null}
-                            </div>
-                        )}
-
                         {/* Regular attending button when not dragging */}
-                        
-                            <div className="right-3 z-[5]">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            {(isUpdatingAttend || isUnsaving || isPerformingAction) ? (
-                                                <div className="text-nowrap bg-primary/80 rounded-sm px-2 py-1.5 shadow-md z-[10] cursor-wait text-md font-medium text-primary-foreground flex items-center gap-1">
-                                                    <Loader2 className="h-3 w-3 text-primary-foreground animate-spin" />
-                                                    {isUnsaving ? "Unsaving..." : "Updating..."}
-                                                </div>
-                                            ) : attending ? (
-                                                <button
-                                                    onClick={handleAttendingToggle}
-                                                    disabled={isUpdatingAttend || isUnsaving || isPerformingAction}
-                                                    className="text-nowrap bg-primary rounded-sm px-2 py-1.5 shadow-md z-[10] cursor-pointer text-md font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus:ring-2 focus:ring-primary/30 focus:outline-none hover:scale-105"
-                                                    aria-label="Mark as not attending"
-                                                >
-                                                    Attending
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={handleAttendingToggle}
-                                                    disabled={isUpdatingAttend || isUnsaving || isPerformingAction}
-                                                    className="text-nowrap bg-muted rounded-sm px-2 py-1.5 shadow-md z-[10] cursor-pointer text-md font-medium border border-border hover:bg-muted/80 transition-colors focus:ring-2 focus:ring-muted/50 focus:outline-none hover:scale-105"
-                                                    aria-label="Mark as attending"
-                                                >
-                                                    Not Attending
-                                                </button>
-                                            )}
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            {(isUpdatingAttend || isUnsaving || isPerformingAction) ? (
-                                                <p>{isUnsaving ? "Removing from saved events..." : "Updating attendance status..."}</p>
-                                            ) : (
-                                                <p>Click to {attending ? 'remove' : 'add'} yourself as attending</p>
-                                            )}
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
-                        
+
+                        <div className="right-3 z-[5]">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        {(isUpdatingAttend || isUnsaving || isPerformingAction) ? (
+                                            <div className="text-nowrap bg-primary/80 rounded-sm px-2 py-1.5 shadow-md z-[10] cursor-wait text-sm font-medium text-primary-foreground flex items-center gap-1">
+                                                <Loader2 className="h-3 w-3 text-primary-foreground animate-spin" />
+                                                {isUnsaving ? "Unsaving..." : "Updating..."}
+                                            </div>
+                                        ) : attending ? (
+                                            <button
+                                                onClick={handleAttendingToggle}
+                                                disabled={isUpdatingAttend || isUnsaving || isPerformingAction}
+                                                className="text-nowrap bg-primary rounded-sm px-2 py-1.5 shadow-md z-[10] cursor-pointer text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus:ring-2 focus:ring-primary/30 focus:outline-none hover:scale-105"
+                                                aria-label="Mark as not attending"
+                                            >
+                                                Attending
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={handleAttendingToggle}
+                                                disabled={isUpdatingAttend || isUnsaving || isPerformingAction}
+                                                className="text-nowrap bg-muted rounded-sm px-2 py-1.5 shadow-md z-[10] cursor-pointer text-sm font-medium border border-border hover:bg-muted/80 transition-colors focus:ring-2 focus:ring-muted/50 focus:outline-none hover:scale-105"
+                                                aria-label="Mark as attending"
+                                            >
+                                                Not Attending
+                                            </button>
+                                        )}
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        {(isUpdatingAttend || isUnsaving || isPerformingAction) ? (
+                                            <p>{isUnsaving ? "Removing from saved events..." : "Updating attendance status..."}</p>
+                                        ) : (
+                                            <p>Click to {attending ? 'remove' : 'add'} yourself as attending</p>
+                                        )}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+
                     </div>
                 </div>
             </div>

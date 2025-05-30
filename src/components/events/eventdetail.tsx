@@ -1,7 +1,7 @@
 "use client"
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, Link2Icon, MapPinIcon, ShareIcon } from "lucide-react"; // Update this import path
+import { CalendarIcon, CalendarPlus2Icon, Link2Icon, MapPinIcon, ShareIcon } from "lucide-react"; // Update this import path
 import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, useEffect } from "react";
 import { useGetEventByIdQuery, useRegisterEventOpenMutation, useShareEventMutation } from "@/store/services/events.api";
 import GoogleMap from "./geomap";
@@ -137,7 +137,8 @@ export function EventDetail({ eventId }: { eventId: string }) {
                                 </Button>
                             )}
                             {event.metadata?.google_calendar_url && (
-                                <Button asChild>
+                                <Button>
+                                    <CalendarPlus2Icon/>
                                     <a href={event.metadata.google_calendar_url} target="_blank" rel="noopener noreferrer">
                                         Add to Calendar
                                     </a>
