@@ -12,6 +12,12 @@ import { SavedEventCardSkeleton } from './savedeventcardskeleton';
 
 type Category = "Corporate" | "Sports" | "Music" | "Arts & Entertainment" | "Food & Drink" | "Festival" | "Family" | "Other";
 
+interface EventGroup {
+  label: string;
+  date: string;
+  events: Event[];
+}
+
 const EmptyState = ({ selectedFilters }: { selectedFilters: Category[] }) => (
   <div className="flex flex-col items-center justify-center py-12 px-4 text-center mx-auto">
     <h3 className="text-xl font-semibold mb-2">
@@ -25,6 +31,83 @@ const EmptyState = ({ selectedFilters }: { selectedFilters: Category[] }) => (
     </p>
   </div>
 );
+
+// Helper function to get date label
+const getDateLabel = (eventDate: Date): string => {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+
+  const eventDateStr = eventDate.toDateString();
+  const todayStr = today.toDateString();
+  const tomorrowStr = tomorrow.toDateString();
+
+  // Check if it's today
+  if (eventDateStr === todayStr) {
+    return 'today';
+  }
+
+  // Check if it's tomorrow
+  if (eventDateStr === tomorrowStr) {
+    return 'tomorrow';
+  }
+
+  // Check if it's this weekend (Saturday or Sunday of current week)
+  const dayOfWeek = eventDate.getDay();
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay());
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+  if (eventDate >= startOfWeek && eventDate <= endOfWeek && (dayOfWeek === 0 || dayOfWeek === 6)) {
+    return 'this weekend';
+  }
+
+  // Return formatted date for all other dates
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric'
+  };
+
+  // Add year if it's not current year
+  if (eventDate.getFullYear() !== today.getFullYear()) {
+    options.year = 'numeric';
+  }
+
+  return eventDate.toLocaleDateString('en-US', options);
+};
+
+// Helper function to group events by date
+const groupEventsByDate = (events: Event[]): EventGroup[] => {
+  const groups = new Map<string, Event[]>();
+
+  events.forEach(event => {
+    const eventDate = new Date(event.eventstartdatetime);
+    const dateKey = eventDate.toDateString();
+
+    if (!groups.has(dateKey)) {
+      groups.set(dateKey, []);
+    }
+    groups.get(dateKey)!.push(event);
+  });
+
+  // Convert to array and sort by date
+  const sortedGroups = Array.from(groups.entries())
+    .map(([dateKey, events]) => {
+      const date = new Date(dateKey);
+      return {
+        label: getDateLabel(date),
+        date: dateKey,
+        events: events.sort((a, b) =>
+          new Date(a.eventstartdatetime).getTime() - new Date(b.eventstartdatetime).getTime()
+        )
+      };
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return sortedGroups;
+};
 
 export const SavePageContent = () => {
   const [page, setPage] = useState(1);
@@ -96,7 +179,6 @@ export const SavePageContent = () => {
   // Handle new data from API
   useEffect(() => {
     if (data?.events) {
-
       if (page === 1) {
         // First page - replace all events
         setAllEvents(data.events);
@@ -219,6 +301,9 @@ export const SavePageContent = () => {
     }
   };
 
+  // Group events by date
+  const eventGroups = groupEventsByDate(allEvents);
+
   return (
     <div className="flex flex-col items-start space-y-4 justify-start w-full h-full">
       <div className="max-w-4xl px-4">
@@ -281,12 +366,12 @@ export const SavePageContent = () => {
       {/* Content Area */}
       <div className="flex flex-col w-full gap-6 pb-8 px-2">
         {/* Show empty state if no events and not loading */}
-        {!isLoading && !isFetching && allEvents.length === 0 ? (        
+        {!isLoading && !isFetching && allEvents.length === 0 ? (
           <EmptyState selectedFilters={selectedFilters} />
         ) : (
           <>
             {/* Show skeleton while loading first page */}
-              {isLoading && page === 1 ? (
+            {isLoading && page === 1 ? (
               <div className="space-y-4">
                 {Array(5).fill(0).map((_, index) => (
                   <SavedEventCardSkeleton key={`skeleton-${index}`} />
@@ -298,39 +383,57 @@ export const SavePageContent = () => {
                 </div>
               </div>
             ) : (
-              // Render actual events
-              allEvents.map(event => {
-                let distanceInMiles = null
-                const userCoords = localStorage.getItem('user_coordinates')
-                if (userCoords) {
-                  try {
-                    const parsedCoordinates = (JSON.parse(userCoords) as string[]);
-                    const distance = calculateDistance(
-                      +parsedCoordinates[0],
-                      +parsedCoordinates[1],
-                      +event.geolocation[0],
-                      +event.geolocation[1]
-                    )
-                    distanceInMiles = distance;
-                  } catch (error) {
-                    console.error('Error parsing coordinates:', error);
-                  }
-                }
-                return (
-                  <SavedEventCard
-                    key={event.id}
-                    attending={event.attending}
-                    id={event.id}
-                    date={event.eventstartdatetime}
-                    imageUrl={event.imageUrl}
-                    location={event.eventvenuename}
-                    price={event.metadata.price}
-                    title={event.eventname}
-                    distance={distanceInMiles ? `${distanceInMiles} miles` : null}
-                    tags={event.metadata.eventTags.Categories}
-                  />
-                );
-              })
+              // Render events grouped by date
+              eventGroups.map((group, groupIndex) => (
+                <div key={group.date} className="space-y-4">
+                  {/* Timeline Header */}
+                  <div className="flex items-center gap-3 px-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-primary rounded-full"></div>
+                      <h3 className="text-sm font-medium text-muted-foreground capitalize">
+                        {group.label}
+                      </h3>
+                    </div>
+                    <div className="flex-1 h-px bg-border"></div>
+                  </div>
+
+                  {/* Events for this date */}
+                  <div className="space-y-4">
+                    {group.events.map(event => {
+                      let distanceInMiles = null
+                      const userCoords = localStorage.getItem('user_coordinates')
+                      if (userCoords) {
+                        try {
+                          const parsedCoordinates = (JSON.parse(userCoords) as string[]);
+                          const distance = calculateDistance(
+                            +parsedCoordinates[0],
+                            +parsedCoordinates[1],
+                            +event.geolocation[0],
+                            +event.geolocation[1]
+                          )
+                          distanceInMiles = distance;
+                        } catch (error) {
+                          console.error('Error parsing coordinates:', error);
+                        }
+                      }
+                      return (
+                        <SavedEventCard
+                          key={event.id}
+                          attending={event.attending}
+                          id={event.id}
+                          date={event.eventstartdatetime}
+                          imageUrl={event.imageUrl}
+                          location={event.eventvenuename}
+                          price={event.metadata.price}
+                          title={event.eventname}
+                          distance={distanceInMiles ? `${distanceInMiles} miles` : null}
+                          tags={event.metadata.eventTags.Categories}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
             )}
 
             {/* Loading indicator for infinite scroll */}
